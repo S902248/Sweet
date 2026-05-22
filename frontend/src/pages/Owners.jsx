@@ -332,9 +332,23 @@ const Owners = () => {
                       className="w-full pl-9 pr-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl focus:outline-none focus:border-brand-500 text-xs text-slate-700 dark:text-slate-200"
                     >
                       <option value="">Unassigned (No access to POS/Reports)</option>
-                      {branches.map(b => (
-                        <option key={b._id || b.id} value={b._id || b.id}>{b.name}</option>
-                      ))}
+                      {branches.map(b => {
+                        const branchIdStr = b._id || b.id;
+                        const assignedUser = users.find(u => 
+                          u.role === 'Sweet Owner' && 
+                          u.branchId === branchIdStr && 
+                          (modalMode === 'create' || (u._id !== editingUserId && u.id !== editingUserId))
+                        );
+                        return (
+                          <option 
+                            key={branchIdStr} 
+                            value={branchIdStr}
+                            disabled={!!assignedUser}
+                          >
+                            {b.name} {assignedUser ? `(Assigned to ${assignedUser.username})` : ''}
+                          </option>
+                        );
+                      })}
                     </select>
                   </div>
                 </div>

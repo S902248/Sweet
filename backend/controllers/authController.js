@@ -18,6 +18,13 @@ export const registerUser = async (req, res) => {
       return res.status(400).json({ success: false, message: 'User already exists' });
     }
 
+    if (role === 'Sweet Owner' && branchId) {
+      const existingOwner = await User.findOne({ role: 'Sweet Owner', branchId });
+      if (existingOwner) {
+        return res.status(400).json({ success: false, message: 'This branch is already assigned to another owner' });
+      }
+    }
+
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
 
@@ -151,6 +158,13 @@ export const createUser = async (req, res) => {
     if (userExists) {
       return res.status(400).json({ success: false, message: 'User already exists with this email' });
     }
+
+    if (role === 'Sweet Owner' && branchId) {
+      const existingOwner = await User.findOne({ role: 'Sweet Owner', branchId });
+      if (existingOwner) {
+        return res.status(400).json({ success: false, message: 'This branch is already assigned to another owner' });
+      }
+    }
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash(password, salt);
 
@@ -191,6 +205,19 @@ export const updateUser = async (req, res) => {
       const emailExists = await User.findOne({ email });
       if (emailExists) {
         return res.status(400).json({ success: false, message: 'Email is already in use by another user' });
+      }
+    }
+
+    const targetRole = role || user.role;
+    const targetBranchId = branchId !== undefined ? (branchId || null) : user.branchId;
+
+    if (targetRole === 'Sweet Owner' && targetBranchId) {
+      const existingOwner = await User.findOne({ role: 'Sweet Owner', branchId: targetBranchId });
+      if (existingOwner) {
+        const existingOwnerId = existingOwner._id ? existingOwner._id.toString() : existingOwner.id;
+        if (existingOwnerId !== req.params.id) {
+          return res.status(400).json({ success: false, message: 'This branch is already assigned to another owner' });
+        }
       }
     }
 
