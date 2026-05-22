@@ -1,0 +1,100 @@
+@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=Inter:wght@300;400;500;600;700&display=swap');
+
+@import "tailwindcss";
+@config "../tailwind.config.js";
+
+body {
+  @apply bg-slate-50 text-slate-800 font-sans antialiased transition-colors duration-300;
+}
+body.dark {
+  @apply bg-[#0b0f19] text-slate-100;
+}
+
+/* Glassmorphism Styles */
+.glass-card {
+  @apply bg-white/75 backdrop-blur-md border border-slate-200/50 shadow-sm rounded-2xl;
+}
+.dark .glass-card {
+  @apply bg-slate-900/75 border-slate-800/40;
+}
+
+.glass-card-hover {
+  @apply transition-all duration-300;
+}
+.glass-card-hover:hover {
+  @apply shadow-lg border-brand-500/20 -translate-y-1;
+}
+.dark .glass-card-hover:hover {
+  @apply border-brand-500/20;
+}
+
+.glass-modal {
+  @apply bg-white/90 backdrop-blur-lg border border-slate-200/50 shadow-2xl;
+}
+.dark .glass-modal {
+  @apply bg-slate-950/90 border-slate-800/50;
+}
+
+.glass-input {
+  @apply bg-white/50 border border-slate-200 rounded-xl outline-none transition-all duration-200;
+}
+.glass-input:focus {
+  @apply border-brand-500 ring-2 ring-brand-500/20;
+}
+.dark .glass-input {
+  @apply bg-slate-900/40 border-slate-800;
+}
+.dark .glass-input:focus {
+  @apply border-brand-500 ring-brand-500/20;
+}
+
+/* Custom Scrollbar */
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  @apply bg-slate-300 rounded-full;
+}
+::-webkit-scrollbar-thumb:hover {
+  @apply bg-slate-400;
+}
+.dark ::-webkit-scrollbar-thumb {
+  @apply bg-slate-800;
+}
+.dark ::-webkit-scrollbar-thumb:hover {
+  @apply bg-slate-700;
+}
+
+/* Gradient accents */
+.gradient-text {
+  @apply bg-gradient-to-r from-brand-500 to-indigo-600 bg-clip-text text-transparent;
+}
+.dark .gradient-text {
+  @apply from-brand-500 to-indigo-500;
+}
+
+.sweet-gradient-pink {
+  @apply bg-gradient-to-tr from-pink-500 to-rose-400;
+}
+
+.sweet-gradient-gold {
+  @apply bg-gradient-to-tr from-amber-500 to-yellow-400;
+}
+
+.sweet-gradient-brand {
+  @apply bg-gradient-to-tr from-brand-600 to-indigo-500;
+}
+
+/* Micro-animations */
+@keyframes pulse-slow {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.8; }
+}
+
+.animate-pulse-slow {
+  animation: pulse-slow 3s cubic-bezier(0.4, 0, 0.6, 1) infinite;
+}
