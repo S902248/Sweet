@@ -125,3 +125,116 @@ export const getActivityLogs = async (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   }
 };
+
+export const getAllUsers = async (req, res) => {
+  try {
+    const users = await User.find({});
+    // Remove password before returning
+    const usersWithoutPasswords = users.map(u => {
+      const userObj = JSON.parse(JSON.stringify(u));
+      delete userObj.password;
+      return userObj;
+    });
+    res.status(200).json({ success: true, data: usersWithoutPasswords });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+export const createUser = async (req, res) => {
+  try {
+    const { username, email, password, role, branchId } = req.body;
+    if (!username || !email || !password || !role) {
+      return res.status(400).json({ success: false, message: 'All fields are required' });
+    }
+    const userExists = await User.findOne({ email });
+    if (userExists) {
+      return res.status(400).json({ success: false, message: 'User already exists with this email' });
+    }
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(password, salt);
+
+    const user = await User.create({
+      username,
+      email,
+      password: hashedPassword,
+      role,
+      branchId: branchId || null
+    });
+
+    res.status(201).json({
+      success: true,
+      message: 'User created successfully',
+      data: {
+        _id: user._id,
+        username: user.username,
+        email: user.email,
+        role: user.role,
+        branchId: user.branchId
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+export const updateUser = async (req, res) => {
+  try {
+    const { username, email, password, role, branchId } = req.body;
+    const user = await User.findById(req.params.id);
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+
+    // Check email conflicts
+    if (email && email !== user.email) {
+      const emailExists = await User.findOne({ email });
+      if (emailExists) {
+        return res.status(400).json({ success: false, message: 'Email is already in use by another user' });
+      }
+    }
+
+    const updateData = {};
+    if (username) updateData.username = username;
+    if (email) updateData.email = email;
+    if (role) updateData.role = role;
+    updateData.branchId = branchId || null;
+
+    if (password) {
+      const salt = await bcrypt.genSalt(10);
+      updateData.password = await bcrypt.hash(password, salt);
+    }
+
+    const updatedUser = await User.findByIdAndUpdate(req.params.id, updateData, { new: true });
+
+    res.status(200).json({
+      success: true,
+      message: 'User updated successfully',
+      data: {
+        _id: updatedUser._id,
+        username: updatedUser.username,
+        email: updatedUser.email,
+        role: updatedUser.role,
+        branchId: updatedUser.branchId
+      }
+    });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+export const deleteUser = async (req, res) => {
+  try {
+    if (req.params.id === req.user.id) {
+      return res.status(400).json({ success: false, message: 'You cannot delete your own account' });
+    }
+    const user = await User.findById(req.params.id);
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+    await User.findByIdAndDelete(req.params.id);
+    res.status(200).json({ success: true, message: 'User deleted successfully' });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};

@@ -44,3 +44,28 @@ export const authorizeRoles = (...roles) => {
     next();
   };
 };
+
+export const enforceBranchScope = (req, res, next) => {
+  if (!req.user) {
+    return res.status(401).json({ success: false, message: 'Not authorized, no user found' });
+  }
+
+  // Super Admin can access any branch
+  if (req.user.role === 'Super Admin') {
+    return next();
+  }
+
+  const userBranchId = req.user.branchId ? req.user.branchId.toString() : null;
+  if (!userBranchId) {
+    return res.status(400).json({ success: false, message: 'User is not assigned to any branch/store' });
+  }
+
+  // Overrides to force data fetching/creation for their own branch
+  req.query.branchId = userBranchId;
+  if (req.body) {
+    req.body.branchId = userBranchId;
+  }
+
+  next();
+};
+

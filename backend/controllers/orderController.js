@@ -23,25 +23,31 @@ export const updateOrderStatus = async (req, res) => {
     const { id } = req.params;
     const { status } = req.body; // Pending, Preparing, Completed, Delivered
 
-    const order = await Order.findByIdAndUpdate(id, { status }, { new: true });
+    const order = await Order.findById(id);
     if (!order) {
       return res.status(404).json({ success: false, message: 'Order not found' });
     }
 
+    if (req.user.role !== 'Super Admin' && order.branchId && order.branchId.toString() !== req.user.branchId.toString()) {
+      return res.status(403).json({ success: false, message: 'Not authorized to modify this order' });
+    }
+
+    const updatedOrder = await Order.findByIdAndUpdate(id, { status }, { new: true });
+
     const io = req.app.get('io');
     if (io) {
-      io.emit('order_status_update', order);
+      io.emit('order_status_update', updatedOrder);
     }
 
     await ActivityLog.create({
       userId: req.user.id,
       userName: req.user.username,
       action: 'Update Order Status',
-      details: `Updated Order ${order.orderNumber} status to ${status}`,
+      details: `Updated Order ${updatedOrder.orderNumber} status to ${status}`,
       ipAddress: req.ip || 'local'
     });
 
-    res.status(200).json({ success: true, data: order });
+    res.status(200).json({ success: true, data: updatedOrder });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }

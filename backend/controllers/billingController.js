@@ -52,8 +52,8 @@ export const checkout = async (req, res) => {
       const newStock = product.stock - item.quantity;
       await Product.findByIdAndUpdate(item.productId, { stock: newStock });
 
-      // Trigger stock alerts if below limit
-      if (newStock <= product.lowStockThreshold) {
+      // Trigger stock alerts if below limit and it wasn't already below limit
+      if (newStock <= product.lowStockThreshold && product.stock > product.lowStockThreshold) {
         const alertMsg = `Low stock alert: Product ${product.name} is running low at ${newStock} units left.`;
         const notif = await Notification.create({
           title: 'Low Stock Alert',

@@ -6,10 +6,10 @@ const router = express.Router();
 
 router.route('/')
   .get(protect, getSuppliers)
-  .post(protect, authorizeRoles('Super Admin', 'Branch Manager', 'Inventory Staff'), createSupplier);
+  .post(protect, authorizeRoles('Super Admin', 'Sweet Owner'), createSupplier);
 
 router.route('/:id')
-  .put(protect, authorizeRoles('Super Admin', 'Branch Manager', 'Inventory Staff'), updateSupplier)
-  .delete(protect, authorizeRoles('Super Admin', 'Branch Manager'), deleteSupplier);
+  .put(protect, authorizeRoles('Super Admin', 'Sweet Owner'), updateSupplier)
+  .delete(protect, authorizeRoles('Super Admin', 'Sweet Owner'), deleteSupplier);
 
 export default router;

@@ -6,7 +6,17 @@ import Order from '../models/Order.js';
 
 export const getBranches = async (req, res) => {
   try {
-    const branches = await Branch.find({});
+    let query = {};
+    if (req.user && req.user.role !== 'Super Admin') {
+      const userBranchId = req.user.branchId ? req.user.branchId.toString() : null;
+      if (userBranchId) {
+        query._id = userBranchId;
+      } else {
+        return res.status(200).json({ success: true, data: [] });
+      }
+    }
+
+    const branches = await Branch.find(query);
     const products = await Product.find({});
     const orders = await Order.find({});
 

@@ -7,8 +7,8 @@ const userSchema = new mongoose.Schema({
   password: { type: String, required: true },
   role: { 
     type: String, 
-    enum: ['Super Admin', 'Branch Manager', 'Cashier', 'Inventory Staff'], 
-    default: 'Cashier' 
+    enum: ['Super Admin', 'Sweet Owner'], 
+    default: 'Sweet Owner' 
   },
   branchId: { type: mongoose.Schema.Types.ObjectId, ref: 'Branch', default: null },
   isActive: { type: Boolean, default: true }

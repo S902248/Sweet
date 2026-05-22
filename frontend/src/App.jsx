@@ -21,6 +21,7 @@ import Reports from './pages/Reports.jsx';
 import Notifications from './pages/Notifications.jsx';
 import SettingsPage from './pages/Settings.jsx';
 import Suppliers from './pages/Suppliers.jsx';
+import Owners from './pages/Owners.jsx';
 
 // Protected Route Wrapper
 const ProtectedRoute = ({ children }) => {
@@ -89,6 +90,7 @@ function App() {
                   <Route path="/reports" element={<Reports selectedBranch={selectedBranch} />} />
                   <Route path="/notifications" element={<Notifications />} />
                   <Route path="/settings" element={<SettingsPage />} />
+                  <Route path="/owners" element={<Owners />} />
                   
                   {/* Fallback redirect */}
                   <Route path="*" element={<Navigate to="/dashboard" replace />} />

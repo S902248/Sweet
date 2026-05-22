@@ -36,20 +36,26 @@ export const createEmployee = async (req, res) => {
 export const updateEmployee = async (req, res) => {
   try {
     const { id } = req.params;
-    const employee = await Employee.findByIdAndUpdate(id, req.body, { new: true });
+    const employee = await Employee.findById(id);
     if (!employee) {
       return res.status(404).json({ success: false, message: 'Employee not found' });
     }
+
+    if (req.user.role !== 'Super Admin' && employee.branchId && employee.branchId.toString() !== req.user.branchId.toString()) {
+      return res.status(403).json({ success: false, message: 'Not authorized to modify this employee' });
+    }
+
+    const updatedEmployee = await Employee.findByIdAndUpdate(id, req.body, { new: true });
 
     await ActivityLog.create({
       userId: req.user.id,
       userName: req.user.username,
       action: 'Update Employee',
-      details: `Updated employee record for ${employee.name}`,
+      details: `Updated employee record for ${updatedEmployee.name}`,
       ipAddress: req.ip || 'local'
     });
 
-    res.status(200).json({ success: true, data: employee });
+    res.status(200).json({ success: true, data: updatedEmployee });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }
@@ -58,10 +64,16 @@ export const updateEmployee = async (req, res) => {
 export const deleteEmployee = async (req, res) => {
   try {
     const { id } = req.params;
-    const employee = await Employee.findByIdAndDelete(id);
+    const employee = await Employee.findById(id);
     if (!employee) {
       return res.status(404).json({ success: false, message: 'Employee not found' });
     }
+
+    if (req.user.role !== 'Super Admin' && employee.branchId && employee.branchId.toString() !== req.user.branchId.toString()) {
+      return res.status(403).json({ success: false, message: 'Not authorized to delete this employee' });
+    }
+
+    await Employee.findByIdAndDelete(id);
 
     await ActivityLog.create({
       userId: req.user.id,
@@ -85,6 +97,10 @@ export const recordAttendance = async (req, res) => {
     const employee = await Employee.findById(id);
     if (!employee) {
       return res.status(404).json({ success: false, message: 'Employee not found' });
+    }
+
+    if (req.user.role !== 'Super Admin' && employee.branchId && employee.branchId.toString() !== req.user.branchId.toString()) {
+      return res.status(403).json({ success: false, message: 'Not authorized to record attendance for this employee' });
     }
 
     // Check if attendance already logged for the date

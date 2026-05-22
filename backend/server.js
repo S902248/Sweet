@@ -4,6 +4,15 @@ import { Server } from 'socket.io';
 import cors from 'cors';
 import dotenv from 'dotenv';
 import mongoose from 'mongoose';
+import dns from 'dns';
+
+// Configure DNS fallback to handle MongoDB Atlas SRV resolution on networks with problematic DNS settings
+try {
+  dns.setServers(['8.8.8.8', '1.1.1.1']);
+} catch (e) {
+  console.warn('Could not set custom DNS servers:', e);
+}
+
 
 // Routes
 import authRoutes from './routes/authRoutes.js';
@@ -86,18 +95,19 @@ const bootServer = async () => {
       });
       console.log('MongoDB connected successfully.');
     } catch (error) {
-      console.error('MongoDB connection failed. Falling back to local Mock database.');
+      console.error('MongoDB connection failed. Falling back to local Mock database.', error);
       process.env.USE_MOCK_DB = 'true';
     }
   } else {
     console.log('Running server with Local Mock Database fallback.');
   }
 
-  // Self-seed database if empty
+  // Self-seed database if empty or missing the new seeded users
   try {
     const users = await User.find({});
-    if (users.length === 0) {
-      console.log('No user records found. Bootstrapping seed data...');
+    const ownerExists = await User.findOne({ email: 'owner1@sweetflow.com' });
+    if (users.length === 0 || !ownerExists) {
+      console.log('No user records or new owner records found. Bootstrapping seed data...');
       await seedDatabase();
     }
   } catch (err) {

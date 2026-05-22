@@ -73,6 +73,10 @@ export const updateProduct = async (req, res) => {
       return res.status(404).json({ success: false, message: 'Product not found' });
     }
 
+    if (req.user.role !== 'Super Admin' && oldProduct.branchId && oldProduct.branchId.toString() !== req.user.branchId.toString()) {
+      return res.status(403).json({ success: false, message: 'Not authorized to modify this product' });
+    }
+
     const product = await Product.findByIdAndUpdate(id, req.body, { new: true });
 
     await ActivityLog.create({
@@ -98,6 +102,14 @@ export const updateProduct = async (req, res) => {
       if (io) {
         io.emit('notification', notif);
       }
+    } else if (product.stock > product.lowStockThreshold) {
+      // If stock goes above threshold, clear existing low stock notifications for this product
+      const unreadNotifs = await Notification.find({ type: 'low_stock', read: false });
+      for (const notif of unreadNotifs) {
+        if (notif.message.includes(`Product ${product.name}`)) {
+          await Notification.findByIdAndUpdate(notif._id || notif.id, { read: true });
+        }
+      }
     }
 
     res.status(200).json({ success: true, data: product });
@@ -109,10 +121,16 @@ export const updateProduct = async (req, res) => {
 export const deleteProduct = async (req, res) => {
   try {
     const { id } = req.params;
-    const product = await Product.findByIdAndDelete(id);
+    const product = await Product.findById(id);
     if (!product) {
       return res.status(404).json({ success: false, message: 'Product not found' });
     }
+
+    if (req.user.role !== 'Super Admin' && product.branchId && product.branchId.toString() !== req.user.branchId.toString()) {
+      return res.status(403).json({ success: false, message: 'Not authorized to delete this product' });
+    }
+
+    await Product.findByIdAndDelete(id);
 
     await ActivityLog.create({
       userId: req.user.id,

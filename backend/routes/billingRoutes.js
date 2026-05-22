@@ -1,13 +1,13 @@
 import express from 'express';
 import { checkout, getBills } from '../controllers/billingController.js';
-import { protect } from '../middleware/authMiddleware.js';
+import { protect, enforceBranchScope } from '../middleware/authMiddleware.js';
 import Bill from '../models/Bill.js';
 import Order from '../models/Order.js';
 
 const router = express.Router();
 
-router.post('/checkout', protect, checkout);
-router.get('/bills', protect, getBills);
+router.post('/checkout', protect, enforceBranchScope, checkout);
+router.get('/bills', protect, enforceBranchScope, getBills);
 
 // Mock Invoice PDF download route (renders clean receipt in HTML format)
 router.get('/invoice/:invoiceNumber/pdf', async (req, res) => {

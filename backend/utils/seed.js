@@ -1,4 +1,5 @@
 import bcrypt from 'bcryptjs';
+import mongoose from 'mongoose';
 import User from '../models/User.js';
 import Branch from '../models/Branch.js';
 import Category from '../models/Category.js';
@@ -14,11 +15,27 @@ import { mockDb } from './dbFallback.js';
 
 export const seedDatabase = async () => {
   try {
-    // Clear Mock DB file if using mock db
+    // Clear Mock DB file if using mock db, or clear Mongoose collections if using real DB
     if (process.env.USE_MOCK_DB === 'true') {
       mockDb.clearAll();
       console.log('Cleared mock database file.');
+    } else {
+      console.log('Clearing existing MongoDB collections for clean seed...');
+      await Promise.all([
+        mongoose.model('Branch').deleteMany({}),
+        mongoose.model('User').deleteMany({}),
+        mongoose.model('Category').deleteMany({}),
+        mongoose.model('Supplier').deleteMany({}),
+        mongoose.model('Product').deleteMany({}),
+        mongoose.model('Employee').deleteMany({}),
+        mongoose.model('Customer').deleteMany({}),
+        mongoose.model('Order').deleteMany({}),
+        mongoose.model('Bill').deleteMany({}),
+        mongoose.model('ActivityLog').deleteMany({}),
+        mongoose.model('Notification').deleteMany({})
+      ]);
     }
+
 
     const salt = await bcrypt.genSalt(10);
     const hashedPassword = await bcrypt.hash('password123', salt);
@@ -37,32 +54,34 @@ export const seedDatabase = async () => {
       branchId: null
     });
 
-    const manager = await User.create({
-      username: 'Ramesh Sen',
-      email: 'manager@sweetflow.com',
+    const owner1 = await User.create({
+      username: 'Salt Lake Owner',
+      email: 'owner1@sweetflow.com',
       password: hashedPassword,
-      role: 'Branch Manager',
+      role: 'Sweet Owner',
       branchId: b1._id
     });
 
-    const cashier = await User.create({
-      username: 'Suresh Kumar',
-      email: 'cashier@sweetflow.com',
+    const owner2 = await User.create({
+      username: 'Park Street Owner',
+      email: 'owner2@sweetflow.com',
       password: hashedPassword,
-      role: 'Cashier',
-      branchId: b1._id
+      role: 'Sweet Owner',
+      branchId: b2._id
     });
 
-    const inventoryStaff = await User.create({
-      username: 'Gopal Shaw',
-      email: 'inventory@sweetflow.com',
+    const owner3 = await User.create({
+      username: 'Howrah Owner',
+      email: 'owner3@sweetflow.com',
       password: hashedPassword,
-      role: 'Inventory Staff',
-      branchId: b1._id
+      role: 'Sweet Owner',
+      branchId: b3._id
     });
 
-    // Assign manager to branch
-    await Branch.findByIdAndUpdate(b1._id, { managerId: manager._id });
+    // Assign owner to branch
+    await Branch.findByIdAndUpdate(b1._id, { managerId: owner1._id });
+    await Branch.findByIdAndUpdate(b2._id, { managerId: owner2._id });
+    await Branch.findByIdAndUpdate(b3._id, { managerId: owner3._id });
 
     console.log('Seeding categories...');
     const catNames = ['Bengali sweets', 'Dry sweets', 'Snacks', 'Bakery', 'Namkeen'];
@@ -76,48 +95,58 @@ export const seedDatabase = async () => {
 
     console.log('Seeding products...');
     const productsData = [
-      { name: 'Kolkata Rosogolla', category: 'Bengali sweets', price: 20, costPrice: 10, stock: 150, lowStockThreshold: 20, barcode: '8901234567890', branchId: b1._id },
-      { name: 'Kesar Sondesh', category: 'Bengali sweets', price: 25, costPrice: 12, stock: 120, lowStockThreshold: 15, barcode: '8901234567891', branchId: b1._id },
-      { name: 'Mishti Doi (Cup)', category: 'Bengali sweets', price: 40, costPrice: 20, stock: 8, lowStockThreshold: 15, barcode: '8901234567892', branchId: b1._id }, // low stock
-      { name: 'Kaju Katli', category: 'Dry sweets', price: 800, costPrice: 500, stock: 50, lowStockThreshold: 10, barcode: '8901234567893', branchId: b1._id },
-      { name: 'Motichoor Laddu', category: 'Dry sweets', price: 300, costPrice: 180, stock: 80, lowStockThreshold: 15, barcode: '8901234567894', branchId: b1._id },
-      { name: 'Singara (Samosa)', category: 'Snacks', price: 15, costPrice: 7, stock: 200, lowStockThreshold: 30, barcode: '8901234567895', branchId: b1._id },
-      { name: 'Aloo Bhujia', category: 'Namkeen', price: 240, costPrice: 150, stock: 4, lowStockThreshold: 8, barcode: '8901234567896', branchId: b1._id }, // low stock
-      { name: 'Eggless Chocolate Cake', category: 'Bakery', price: 350, costPrice: 200, stock: 12, lowStockThreshold: 5, barcode: '8901234567897', branchId: b1._id },
+      { name: 'Kolkata Rosogolla', category: 'Bengali sweets', price: 20, costPrice: 10, stock: 150, lowStockThreshold: 20, barcode_prefix: '890123456789' },
+      { name: 'Kesar Sondesh', category: 'Bengali sweets', price: 25, costPrice: 12, stock: 120, lowStockThreshold: 15, barcode_prefix: '890123456790' },
+      { name: 'Mishti Doi (Cup)', category: 'Bengali sweets', price: 40, costPrice: 20, stock: 8, lowStockThreshold: 15, barcode_prefix: '890123456791' }, // low stock
+      { name: 'Kaju Katli', category: 'Dry sweets', price: 800, costPrice: 500, stock: 50, lowStockThreshold: 10, barcode_prefix: '890123456792' },
+      { name: 'Motichoor Laddu', category: 'Dry sweets', price: 300, costPrice: 180, stock: 80, lowStockThreshold: 15, barcode_prefix: '890123456793' },
+      { name: 'Singara (Samosa)', category: 'Snacks', price: 15, costPrice: 7, stock: 200, lowStockThreshold: 30, barcode_prefix: '890123456794' },
+      { name: 'Aloo Bhujia', category: 'Namkeen', price: 240, costPrice: 150, stock: 4, lowStockThreshold: 8, barcode_prefix: '890123456795' }, // low stock
+      { name: 'Eggless Chocolate Cake', category: 'Bakery', price: 350, costPrice: 200, stock: 12, lowStockThreshold: 5, barcode_prefix: '890123456796' },
     ];
 
     const seededProducts = [];
-    for (const p of productsData) {
-      const prod = await Product.create(p);
-      seededProducts.push(prod);
+    const branches = [b1, b2, b3];
+    let barcodeIdx = 100;
+    for (const branch of branches) {
+      for (const p of productsData) {
+        const prod = await Product.create({
+          name: p.name,
+          category: p.category,
+          price: p.price,
+          costPrice: p.costPrice,
+          stock: p.stock,
+          lowStockThreshold: p.lowStockThreshold,
+          barcode: `${p.barcode_prefix}${barcodeIdx++}`,
+          branchId: branch._id
+        });
+        seededProducts.push(prod);
+      }
     }
 
     console.log('Seeding employees...');
-    const emp1 = await Employee.create({
-      name: 'Ramesh Sen',
-      phone: '9836012345',
-      role: 'Branch Manager',
-      branchId: b1._id,
-      salary: 35000,
-      attendance: [
-        { date: '2026-05-20', status: 'Present' },
-        { date: '2026-05-21', status: 'Present' }
-      ],
-      performanceScore: 5
-    });
+    const employeeNames = [
+      { name: 'Ramesh Sen', role: 'Branch Manager', salary: 35000 },
+      { name: 'Suresh Kumar', role: 'Cashier', salary: 18000 },
+      { name: 'Gopal Shaw', role: 'Inventory Staff', salary: 20000 }
+    ];
 
-    const emp2 = await Employee.create({
-      name: 'Suresh Kumar',
-      phone: '9836067890',
-      role: 'Cashier',
-      branchId: b1._id,
-      salary: 18000,
-      attendance: [
-        { date: '2026-05-20', status: 'Present' },
-        { date: '2026-05-21', status: 'Present' }
-      ],
-      performanceScore: 4
-    });
+    for (const branch of branches) {
+      for (const empData of employeeNames) {
+        await Employee.create({
+          name: `${empData.name} (${branch.name.split(' ')[0]})`,
+          phone: `98360${Math.floor(100000 + Math.random() * 900000)}`,
+          role: empData.role,
+          branchId: branch._id,
+          salary: empData.salary,
+          attendance: [
+            { date: '2026-05-20', status: 'Present' },
+            { date: '2026-05-21', status: 'Present' }
+          ],
+          performanceScore: Math.floor(4 + Math.random() * 2)
+        });
+      }
+    }
 
     console.log('Seeding customers...');
     const cust1 = await Customer.create({ name: 'Amit Sharma', phone: '9876543210', email: 'amit@gmail.com', loyaltyPoints: 120, membershipType: 'Gold', totalPurchases: 12000 });
@@ -137,83 +166,88 @@ export const seedDatabase = async () => {
       const date = dates[j];
       const dateStr = date.toISOString().split('T')[0];
       
-      // Generate 2-4 orders per day
-      const orderCount = Math.floor(2 + Math.random() * 3);
-      for (let k = 0; k < orderCount; k++) {
-        const orderNum = `SF-${date.getTime().toString().substr(-6)}-${k}`;
-        const invNum = `INV-${date.getTime().toString().substr(-6)}-${k}`;
-        
-        // Choose random product
-        const prod = seededProducts[Math.floor(Math.random() * seededProducts.length)];
-        const qty = Math.floor(1 + Math.random() * 5);
-        const subtotal = prod.price * qty;
-        const discount = Math.random() > 0.7 ? 10 : 0;
-        const tax = parseFloat(((subtotal - discount) * 0.05).toFixed(2));
-        const total = subtotal - discount + tax;
+      // Generate 2-4 orders per day per branch
+      for (const branch of branches) {
+        const orderCount = Math.floor(1 + Math.random() * 3);
+        for (let k = 0; k < orderCount; k++) {
+          const orderNum = `SF-${dateStr}-${branch.name.substr(0,2).toUpperCase()}-${k}`;
+          const invNum = `INV-${dateStr}-${branch.name.substr(0,2).toUpperCase()}-${k}`;
+          
+          // Choose random product of this branch
+          const branchProducts = seededProducts.filter(p => p.branchId.toString() === branch._id.toString());
+          const prod = branchProducts[Math.floor(Math.random() * branchProducts.length)];
+          const qty = Math.floor(1 + Math.random() * 5);
+          const subtotal = prod.price * qty;
+          const discount = Math.random() > 0.7 ? 10 : 0;
+          const tax = parseFloat(((subtotal - discount) * 0.05).toFixed(2));
+          const total = subtotal - discount + tax;
 
-        const order = await Order.create({
-          orderNumber: orderNum,
-          branchId: b1._id,
-          customerId: cust1._id,
-          customerPhone: cust1.phone,
-          items: [
-            {
-              productId: prod._id,
-              name: prod.name,
-              price: prod.price,
-              quantity: qty,
-              category: prod.category
-            }
-          ],
-          totalAmount: subtotal,
-          discountAmount: discount,
-          taxAmount: tax,
-          finalAmount: total,
-          paymentMethod: ['Cash', 'Card', 'UPI'][Math.floor(Math.random() * 3)],
-          paymentStatus: 'Completed',
-          status: 'Completed',
-          type: 'Counter',
-          createdAt: date.toISOString(),
-          updatedAt: date.toISOString()
-        });
+          const order = await Order.create({
+            orderNumber: orderNum,
+            branchId: branch._id,
+            customerId: cust1._id,
+            customerPhone: cust1.phone,
+            items: [
+              {
+                productId: prod._id,
+                name: prod.name,
+                price: prod.price,
+                quantity: qty,
+                category: prod.category
+              }
+            ],
+            totalAmount: subtotal,
+            discountAmount: discount,
+            taxAmount: tax,
+            finalAmount: total,
+            paymentMethod: ['Cash', 'Card', 'UPI'][Math.floor(Math.random() * 3)],
+            paymentStatus: 'Completed',
+            status: 'Completed',
+            type: 'Counter',
+            createdAt: date.toISOString(),
+            updatedAt: date.toISOString()
+          });
 
-        await Bill.create({
-          invoiceNumber: invNum,
-          orderId: order._id,
-          customerId: cust1._id,
-          customerPhone: cust1.phone,
-          customerName: cust1.name,
-          branchId: b1._id,
-          subtotal,
-          taxAmount: tax,
-          discount,
-          totalAmount: total,
-          paymentMethod: order.paymentMethod,
-          paymentStatus: 'Paid',
-          pdfUrl: `/api/billing/invoice/${invNum}/pdf`,
-          createdAt: date.toISOString(),
-          updatedAt: date.toISOString()
-        });
+          await Bill.create({
+            invoiceNumber: invNum,
+            orderId: order._id,
+            customerId: cust1._id,
+            customerPhone: cust1.phone,
+            customerName: cust1.name,
+            branchId: branch._id,
+            subtotal,
+            taxAmount: tax,
+            discount,
+            totalAmount: total,
+            paymentMethod: order.paymentMethod,
+            paymentStatus: 'Paid',
+            pdfUrl: `/api/billing/invoice/${invNum}/pdf`,
+            createdAt: date.toISOString(),
+            updatedAt: date.toISOString()
+          });
+        }
       }
     }
 
     console.log('Seeding activity logs & notifications...');
     await ActivityLog.create({ userId: superAdmin._id, userName: superAdmin.username, action: 'Seed Database', details: 'Initialized ERP database with seed records.', ipAddress: '127.0.0.1' });
     
-    // Seed notifications for low stock products (e.g. Mishti Doi, Aloo Bhujia)
-    await Notification.create({
-      title: 'Low Stock Alert',
-      message: 'Low stock alert: Product Mishti Doi (Cup) has only 8 left.',
-      type: 'low_stock',
-      branchId: b1._id
-    });
-    
-    await Notification.create({
-      title: 'Low Stock Alert',
-      message: 'Low stock alert: Product Aloo Bhujia has only 4 units left.',
-      type: 'low_stock',
-      branchId: b1._id
-    });
+    // Seed notifications for low stock products per branch
+    for (const branch of branches) {
+      await Notification.create({
+        title: 'Low Stock Alert',
+        message: 'Low stock alert: Product Mishti Doi (Cup) has only 8 left.',
+        type: 'low_stock',
+        branchId: branch._id
+      });
+      
+      await Notification.create({
+        title: 'Low Stock Alert',
+        message: 'Low stock alert: Product Aloo Bhujia has only 4 units left.',
+        type: 'low_stock',
+        branchId: branch._id
+      });
+    }
 
     console.log('Database seeding successfully completed.');
   } catch (error) {

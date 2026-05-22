@@ -18,11 +18,17 @@ export const getNotifications = async (req, res) => {
 export const markAsRead = async (req, res) => {
   try {
     const { id } = req.params;
-    const notif = await Notification.findByIdAndUpdate(id, { read: true }, { new: true });
+    const notif = await Notification.findById(id);
     if (!notif) {
       return res.status(404).json({ success: false, message: 'Notification not found' });
     }
-    res.status(200).json({ success: true, data: notif });
+
+    if (req.user.role !== 'Super Admin' && notif.branchId && notif.branchId.toString() !== req.user.branchId.toString()) {
+      return res.status(403).json({ success: false, message: 'Not authorized to read this notification' });
+    }
+
+    const updatedNotif = await Notification.findByIdAndUpdate(id, { read: true }, { new: true });
+    res.status(200).json({ success: true, data: updatedNotif });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }

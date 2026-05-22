@@ -7,20 +7,20 @@ import {
   getCategories, 
   createCategory 
 } from '../controllers/productController.js';
-import { protect, authorizeRoles } from '../middleware/authMiddleware.js';
+import { protect, authorizeRoles, enforceBranchScope } from '../middleware/authMiddleware.js';
 
 const router = express.Router();
 
 router.route('/')
-  .get(protect, getProducts)
-  .post(protect, authorizeRoles('Super Admin', 'Branch Manager', 'Inventory Staff'), createProduct);
+  .get(protect, enforceBranchScope, getProducts)
+  .post(protect, authorizeRoles('Super Admin', 'Sweet Owner'), enforceBranchScope, createProduct);
 
 router.route('/categories')
   .get(protect, getCategories)
-  .post(protect, authorizeRoles('Super Admin', 'Branch Manager', 'Inventory Staff'), createCategory);
+  .post(protect, authorizeRoles('Super Admin', 'Sweet Owner'), createCategory);
 
 router.route('/:id')
-  .put(protect, authorizeRoles('Super Admin', 'Branch Manager', 'Inventory Staff'), updateProduct)
-  .delete(protect, authorizeRoles('Super Admin', 'Branch Manager'), deleteProduct);
+  .put(protect, authorizeRoles('Super Admin', 'Sweet Owner'), updateProduct)
+  .delete(protect, authorizeRoles('Super Admin', 'Sweet Owner'), deleteProduct);
 
 export default router;

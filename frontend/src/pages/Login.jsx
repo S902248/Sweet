@@ -48,33 +48,14 @@ const Login = () => {
   // Pre-fill quick logins for easy evaluation!
   const quickLogins = [
     { label: 'Super Admin', email: 'admin@sweetflow.com', desc: 'Manage all branches' },
-    { label: 'Manager', email: 'manager@sweetflow.com', desc: 'Manage Salt Lake Branch' },
-    { label: 'Cashier', email: 'cashier@sweetflow.com', desc: 'Billing & Orders' },
-    { label: 'Inventory', email: 'inventory@sweetflow.com', desc: 'Stock & Alert checks' }
+    { label: 'Sweet Owner', email: 'owner1@sweetflow.com', desc: 'Manage assigned branch' }
   ];
 
-  const handleQuickLogin = async (emailAddress) => {
+  const handleQuickLogin = (emailAddress, e) => {
+    if (e) e.preventDefault();
     setEmail(emailAddress);
     setPassword('password123');
-    dispatch(loginStart());
-    try {
-      const res = await api.post('/auth/login', { email: emailAddress, password: 'password123' });
-      if (res.data.success) {
-        dispatch(loginSuccess({
-          user: {
-            _id: res.data.data._id,
-            username: res.data.data.username,
-            email: res.data.data.email,
-            role: res.data.data.role,
-            branchId: res.data.data.branchId
-          },
-          token: res.data.data.token
-        }));
-        navigate('/dashboard');
-      }
-    } catch (err) {
-      dispatch(loginFailure(err.response?.data?.message || 'Login failed. Please check credentials.'));
-    }
+    dispatch(clearError());
   };
 
   return (
@@ -160,7 +141,8 @@ const Login = () => {
             {quickLogins.map((role) => (
               <button
                 key={role.label}
-                onClick={() => handleQuickLogin(role.email)}
+                type="button"
+                onClick={(e) => handleQuickLogin(role.email, e)}
                 className="p-3 text-left rounded-xl bg-slate-900/30 border border-slate-800 hover:border-brand-500/50 hover:bg-slate-900/70 transition-all duration-200"
               >
                 <p className="text-xs font-bold text-white leading-none">{role.label}</p>
