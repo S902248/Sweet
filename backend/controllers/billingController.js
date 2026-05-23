@@ -15,7 +15,9 @@ export const checkout = async (req, res) => {
       items, 
       discountAmount, 
       paymentMethod,
-      type // Counter, Online, Delivery
+      type, // Counter, Online, Delivery
+      redeemPoints,
+      upiId
     } = req.body;
 
     if (!items || items.length === 0) {
@@ -40,7 +42,20 @@ export const checkout = async (req, res) => {
 
     // Flat 5% GST on sweet items
     const taxRate = 0.05; 
-    const calculatedDiscount = discountAmount || 0;
+    
+    // Evaluate loyalty points redemption
+    let loyaltyDiscount = 0;
+    let redeemedPoints = 0;
+    if (customerPhone && redeemPoints) {
+      const customer = await Customer.findOne({ phone: customerPhone });
+      if (customer && customer.loyaltyPoints > 0) {
+        const maxPointsRedeemable = Math.floor(totalAmount - (discountAmount || 0));
+        redeemedPoints = Math.min(customer.loyaltyPoints, Math.max(0, maxPointsRedeemable));
+        loyaltyDiscount = redeemedPoints;
+      }
+    }
+
+    const calculatedDiscount = Math.min(totalAmount, Math.max(0, (discountAmount || 0) + loyaltyDiscount));
     const taxableAmount = totalAmount - calculatedDiscount;
     const taxAmount = parseFloat((taxableAmount * taxRate).toFixed(2));
     const finalAmount = parseFloat((taxableAmount + taxAmount).toFixed(2));
@@ -102,15 +117,16 @@ export const checkout = async (req, res) => {
       totalAmount: finalAmount,
       paymentMethod,
       paymentStatus: 'Paid',
-      pdfUrl: `/api/billing/invoice/${invoiceNumber}/pdf` // Mock PDF receipt endpoint
+      pdfUrl: `/api/billing/invoice/${invoiceNumber}/pdf`, // Mock PDF receipt endpoint
+      upiId: upiId || 'sweetflow@ybl'
     });
 
-    // Process Loyalty points (1 point for every 100 Rs spent)
+    // Process Loyalty points (1 point for every 100 Rs spent, minus redeemed points)
     if (customerPhone) {
       const addedPoints = Math.floor(finalAmount / 100);
       let customer = await Customer.findOne({ phone: customerPhone });
       if (customer) {
-        const newPoints = customer.loyaltyPoints + addedPoints;
+        const newPoints = Math.max(0, customer.loyaltyPoints - redeemedPoints) + addedPoints;
         const newTotal = customer.totalPurchases + finalAmount;
 
         // Upgrade membership status based on points or total spend
@@ -134,7 +150,7 @@ export const checkout = async (req, res) => {
         await Customer.create({
           name: customerName || 'Walk-in Customer',
           phone: customerPhone,
-          loyaltyPoints: addedPoints,
+          loyaltyPoints: addedPoints, // cannot redeem if they were not registered
           membershipType: membership,
           totalPurchases: finalAmount
         });

@@ -51,3 +51,16 @@ export const deleteCustomer = async (req, res) => {
     res.status(500).json({ success: false, message: error.message });
   }
 };
+
+export const getCustomerByPhone = async (req, res) => {
+  try {
+    const { phone } = req.params;
+    const customer = await Customer.findOne({ phone });
+    if (!customer) {
+      return res.status(404).json({ success: false, message: 'Customer profile not found' });
+    }
+    res.status(200).json({ success: true, data: customer });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
