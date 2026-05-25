@@ -75,6 +75,11 @@ export const loginUser = async (req, res) => {
       return res.status(401).json({ success: false, message: 'Invalid email or password' });
     }
 
+    // Block disabled accounts
+    if (user.isActive === false) {
+      return res.status(403).json({ success: false, message: 'Your account has been disabled. Please contact the Super Admin.' });
+    }
+
     // Write audit log
     await ActivityLog.create({
       userId: user._id,
@@ -143,6 +148,41 @@ export const getAllUsers = async (req, res) => {
       return userObj;
     });
     res.status(200).json({ success: true, data: usersWithoutPasswords });
+  } catch (error) {
+    res.status(500).json({ success: false, message: error.message });
+  }
+};
+
+export const toggleUserStatus = async (req, res) => {
+  try {
+    const requesterId = req.user.id ? req.user.id.toString() : req.user._id?.toString();
+    if (req.params.id === requesterId) {
+      return res.status(400).json({ success: false, message: 'You cannot disable your own account' });
+    }
+    const user = await User.findById(req.params.id);
+    if (!user) {
+      return res.status(404).json({ success: false, message: 'User not found' });
+    }
+    // Treat undefined isActive (legacy docs) as true (active)
+    const currentStatus = user.isActive !== false;
+    const newStatus = !currentStatus;
+    const updatedUser = await User.findByIdAndUpdate(
+      req.params.id,
+      { isActive: newStatus },
+      { new: true }
+    );
+    await ActivityLog.create({
+      userId: req.user.id,
+      userName: req.user.username || 'Super Admin',
+      action: newStatus ? 'Enable User' : 'Disable User',
+      details: `${newStatus ? 'Enabled' : 'Disabled'} account for ${user.username}`,
+      ipAddress: req.ip || 'local'
+    });
+    res.status(200).json({
+      success: true,
+      message: `User ${newStatus ? 'enabled' : 'disabled'} successfully`,
+      data: { _id: updatedUser._id, isActive: updatedUser.isActive }
+    });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
   }

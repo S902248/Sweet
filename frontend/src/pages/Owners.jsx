@@ -1,22 +1,18 @@
 import React, { useEffect, useState } from 'react';
 import { useSelector } from 'react-redux';
 import { Navigate } from 'react-router-dom';
-import { Plus, Key, Trash2, Edit2, Shield, User, Mail, Store } from 'lucide-react';
+import { Plus, Key, Trash2, Edit2, Shield, User, Mail, Store, Power } from 'lucide-react';
 import api from '../utils/api.js';
 
 const Owners = () => {
   const { user: currentUser } = useSelector((state) => state.auth);
 
-  // Redirect if not Super Admin
-  if (currentUser?.role !== 'Super Admin') {
-    return <Navigate to="/dashboard" replace />;
-  }
-
   const [users, setUsers] = useState([]);
   const [branches, setBranches] = useState([]);
   const [showModal, setShowModal] = useState(false);
-  const [modalMode, setModalMode] = useState('create'); // 'create' or 'edit'
+  const [modalMode, setModalMode] = useState('create');
   const [editingUserId, setEditingUserId] = useState(null);
+  const [confirmToggle, setConfirmToggle] = useState(null); // { user, action }
 
   // Form states
   const [username, setUsername] = useState('');
@@ -24,6 +20,11 @@ const Owners = () => {
   const [password, setPassword] = useState('');
   const [role, setRole] = useState('Sweet Owner');
   const [branchId, setBranchId] = useState('');
+
+  // Redirect if not Super Admin — AFTER all hooks
+  if (currentUser?.role !== 'Super Admin') {
+    return <Navigate to="/dashboard" replace />;
+  }
 
   useEffect(() => {
     fetchUsers();
@@ -112,7 +113,8 @@ const Owners = () => {
   };
 
   const handleDelete = async (id) => {
-    if (id === currentUser._id || id === currentUser.id) {
+    const currentId = (currentUser._id || currentUser.id || '').toString();
+    if (id.toString() === currentId) {
       alert('You cannot delete your own logged-in account.');
       return;
     }
@@ -125,6 +127,33 @@ const Owners = () => {
       }
     } catch (err) {
       alert(err.response?.data?.message || 'Error deleting user');
+    }
+  };
+
+  const handleToggleStatus = async (u) => {
+    const id = u._id || u.id;
+    const isDisabled = u.isActive === false;
+    const action = isDisabled ? 'enable' : 'disable';
+    // Show inline confirmation instead of browser confirm()
+    setConfirmToggle({ user: u, action });
+  };
+
+  const confirmToggleAction = async () => {
+    if (!confirmToggle) return;
+    const { user: u, action } = confirmToggle;
+    const id = u._id || u.id;
+    setConfirmToggle(null);
+    try {
+      const res = await api.patch(`/auth/users/${id}/toggle-status`);
+      if (res.data.success) {
+        setUsers(users.map(usr =>
+          (usr._id === id || usr.id === id)
+            ? { ...usr, isActive: res.data.data.isActive }
+            : usr
+        ));
+      }
+    } catch (err) {
+      alert(err.response?.data?.message || 'Error updating user status');
     }
   };
 
@@ -160,10 +189,12 @@ const Owners = () => {
             <tbody className="divide-y divide-slate-100 dark:divide-slate-800/30">
               {users.map(u => {
                 const assignedBranch = branches.find(b => b._id === u.branchId || b.id === u.branchId);
-                const isSelf = u._id === currentUser._id || u.id === currentUser.id;
+                const currentId = (currentUser._id || currentUser.id || '').toString();
+                const userId = (u._id || u.id || '').toString();
+                const isSelf = !!currentId && currentId === userId;
 
                 return (
-                  <tr key={u._id || u.id} className="hover:bg-slate-50/50 dark:hover:bg-slate-800/10 transition-colors">
+                  <tr key={u._id || u.id} className={`hover:bg-slate-50/50 dark:hover:bg-slate-800/10 transition-colors ${u.isActive === false ? 'opacity-60' : ''}`}>
                     <td className="px-6 py-4">
                       <div className="flex items-center gap-3">
                         <div className="w-8 h-8 rounded-lg bg-indigo-500/10 text-indigo-500 flex items-center justify-center font-bold text-xs uppercase">
@@ -173,6 +204,9 @@ const Owners = () => {
                           <span className="font-semibold text-sm text-slate-700 dark:text-slate-200">{u.username}</span>
                           {isSelf && (
                             <span className="ml-2 text-[9px] font-bold text-brand-500 bg-brand-500/10 px-1.5 py-0.5 rounded">You</span>
+                          )}
+                          {u.isActive === false && (
+                            <span className="ml-2 text-[9px] font-bold text-orange-500 bg-orange-500/10 px-1.5 py-0.5 rounded">Disabled</span>
                           )}
                         </div>
                       </div>
@@ -207,6 +241,20 @@ const Owners = () => {
                           className="p-1.5 text-slate-400 hover:text-indigo-500 hover:bg-indigo-50 dark:hover:bg-indigo-950/20 rounded-lg transition-colors"
                         >
                           <Edit2 className="w-4 h-4" />
+                        </button>
+                        <button
+                          onClick={() => handleToggleStatus(u)}
+                          disabled={isSelf}
+                          title={isSelf ? 'Cannot disable yourself' : u.isActive === false ? 'Enable Account' : 'Disable Account'}
+                          className={`p-1.5 rounded-lg transition-colors ${
+                            isSelf
+                              ? 'text-slate-300 dark:text-slate-700 cursor-not-allowed'
+                              : u.isActive === false
+                                ? 'text-orange-500 hover:text-emerald-500 hover:bg-emerald-50 dark:hover:bg-emerald-950/20'
+                                : 'text-slate-400 hover:text-orange-500 hover:bg-orange-50 dark:hover:bg-orange-950/20'
+                          }`}
+                        >
+                          <Power className="w-4 h-4" />
                         </button>
                         <button
                           onClick={() => handleDelete(u._id || u.id)}
@@ -370,6 +418,46 @@ const Owners = () => {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+      {/* Inline Confirm Dialog for Toggle Status */}
+      {confirmToggle && (
+        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
+          <div className="glass-card glass-modal p-6 max-w-sm w-full space-y-4">
+            <div className="flex items-center gap-3">
+              <div className={`w-10 h-10 rounded-xl flex items-center justify-center ${
+                confirmToggle.action === 'disable' ? 'bg-orange-500/10 text-orange-500' : 'bg-emerald-500/10 text-emerald-500'
+              }`}>
+                <Power className="w-5 h-5" />
+              </div>
+              <div>
+                <h3 className="font-extrabold text-base text-slate-800 dark:text-white capitalize">
+                  {confirmToggle.action} Account
+                </h3>
+                <p className="text-xs text-slate-400 mt-0.5">
+                  {confirmToggle.action === 'disable'
+                    ? `${confirmToggle.user.username} will not be able to log in.`
+                    : `${confirmToggle.user.username} will regain access to the system.`}
+                </p>
+              </div>
+            </div>
+            <div className="flex gap-3 pt-1">
+              <button
+                onClick={() => setConfirmToggle(null)}
+                className="w-1/2 py-2.5 border border-slate-200 dark:border-slate-800 text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800/40 rounded-xl text-xs font-semibold"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={confirmToggleAction}
+                className={`w-1/2 py-2.5 rounded-xl text-xs font-bold text-white ${
+                  confirmToggle.action === 'disable' ? 'bg-orange-500 hover:bg-orange-600' : 'bg-emerald-500 hover:bg-emerald-600'
+                }`}
+              >
+                Yes, {confirmToggle.action}
+              </button>
+            </div>
           </div>
         </div>
       )}
