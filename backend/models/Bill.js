@@ -14,7 +14,8 @@ const billSchema = new mongoose.Schema({
   totalAmount: { type: Number, required: true },
   paymentMethod: { type: String, required: true },
   paymentStatus: { type: String, default: 'Paid' },
-  pdfUrl: { type: String, default: '' }
+  pdfUrl: { type: String, default: '' },
+  upiId: { type: String, default: 'sweetflow@ybl' }
 }, { timestamps: true });
 
 const MongooseBill = mongoose.models.Bill || mongoose.model('Bill', billSchema);

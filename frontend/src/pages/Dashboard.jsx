@@ -2,11 +2,11 @@ import React, { useEffect, useState } from 'react';
 import { useSelector } from 'react-redux';
 import { 
   TrendingUp, ShoppingBag, Store, AlertTriangle, 
-  Clock, DollarSign, Award, ChevronRight, Activity, ArrowUpRight
+  Clock, DollarSign, Award, ChevronRight, Activity, ArrowUpRight, Sparkles
 } from 'lucide-react';
 import { 
   AreaChart, Area, XAxis, YAxis, CartesianGrid, 
-  Tooltip, ResponsiveContainer, BarChart, Bar, Cell 
+  Tooltip, ResponsiveContainer, BarChart, Bar, Cell, LineChart, Line
 } from 'recharts';
 import api from '../utils/api.js';
 
@@ -14,6 +14,7 @@ const Dashboard = ({ selectedBranch }) => {
   const { user } = useSelector((state) => state.auth);
   
   const [stats, setStats] = useState(null);
+  const [aiReport, setAiReport] = useState(null);
   const [logs, setLogs] = useState([]);
   const [loading, setLoading] = useState(true);
 
@@ -28,6 +29,17 @@ const Dashboard = ({ selectedBranch }) => {
       const statsRes = await api.get(url);
       if (statsRes.data.success) {
         setStats(statsRes.data.data);
+      }
+
+      // Fetch AI predictions
+      const aiUrl = selectedBranch ? `/analytics/ai-report?branchId=${selectedBranch}` : '/analytics/ai-report';
+      try {
+        const aiRes = await api.get(aiUrl);
+        if (aiRes.data.success) {
+          setAiReport(aiRes.data.data);
+        }
+      } catch (aiErr) {
+        console.error('Error fetching AI analytics predictions:', aiErr);
       }
 
       // Fetch audit logs if super admin
@@ -182,6 +194,117 @@ const Dashboard = ({ selectedBranch }) => {
           </div>
         </div>
       </div>
+
+      {/* AI Forecasting Analytics Row */}
+      {aiReport && (
+        <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+          {/* AI predictions line chart */}
+          <div className="glass-card p-6 lg:col-span-2 space-y-4 relative overflow-hidden border border-brand-500/10">
+            {/* Ambient Background Aura */}
+            <div className="absolute top-0 right-0 w-48 h-48 bg-brand-500/5 rounded-full blur-3xl pointer-events-none" />
+
+            <div className="flex items-center justify-between">
+              <div>
+                <div className="flex items-center gap-1.5">
+                  <Sparkles className="w-4 h-4 text-brand-500 animate-pulse" />
+                  <span className="text-[10px] font-bold text-brand-500 uppercase tracking-widest">SweetFlow Predictive AI</span>
+                </div>
+                <h3 className="font-extrabold text-lg text-slate-800 dark:text-white mt-1">7-Day Sales Forecast</h3>
+                <p className="text-xs text-slate-400">AI prediction model mapping potential future daily turnovers</p>
+              </div>
+              <span className={`flex items-center gap-1 text-xs font-semibold px-2.5 py-1 rounded-full ${
+                aiReport.trend === 'Upward' 
+                  ? 'text-emerald-500 bg-emerald-500/10' 
+                  : aiReport.trend === 'Downward'
+                  ? 'text-rose-500 bg-rose-500/10'
+                  : 'text-slate-500 bg-slate-500/10'
+              }`}>
+                {aiReport.trend} Sales Trend
+              </span>
+            </div>
+
+            <div className="h-80 w-full pt-2">
+              <ResponsiveContainer width="100%" height="100%">
+                <LineChart 
+                  data={aiReport.predictions.map(p => ({
+                    ...p,
+                    dateFormatted: new Date(p.date).toLocaleDateString('en-IN', { day: '2-digit', month: 'short' })
+                  }))} 
+                  margin={{ top: 10, right: 10, left: -20, bottom: 0 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#e2e8f0" className="dark:hidden" />
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#334155" className="hidden dark:block" />
+                  <XAxis dataKey="dateFormatted" tickLine={false} axisLine={false} style={{ fontSize: 10, fill: '#94a3b8' }} />
+                  <YAxis tickLine={false} axisLine={false} style={{ fontSize: 10, fill: '#94a3b8' }} />
+                  <Tooltip 
+                    contentStyle={{ 
+                      backgroundColor: 'rgba(15, 23, 42, 0.95)', 
+                      border: 'none', 
+                      borderRadius: '12px',
+                      color: '#fff',
+                      fontSize: '12px'
+                    }} 
+                  />
+                  <Line 
+                    type="monotone" 
+                    dataKey="predictedSales" 
+                    name="Predicted Sales" 
+                    stroke="#818cf8" 
+                    strokeWidth={3} 
+                    strokeDasharray="5 5"
+                    dot={{ r: 4, stroke: '#818cf8', strokeWidth: 2, fill: '#fff' }}
+                    activeDot={{ r: 6 }} 
+                  />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+
+          {/* AI recommendations card */}
+          <div className="glass-card p-6 flex flex-col justify-between gap-6 relative overflow-hidden border border-brand-500/10">
+            <div>
+              <h3 className="font-extrabold text-lg text-slate-800 dark:text-white">AI Actionable Insights</h3>
+              <p className="text-xs text-slate-400 mt-0.5">Procurement and stocking suggestions</p>
+            </div>
+
+            <div className="space-y-4">
+              <div className="p-4 rounded-2xl bg-indigo-500/5 border border-indigo-500/10">
+                <span className="text-[10px] font-bold text-indigo-500 uppercase tracking-wide">Forecast Slope</span>
+                <p className="font-bold text-slate-700 dark:text-slate-200 text-sm mt-0.5">
+                  Rs. {aiReport.slope} growth multiplier
+                </p>
+              </div>
+
+              <div className="space-y-2.5">
+                <span className="text-[10px] font-bold text-slate-400 dark:text-slate-500 uppercase tracking-wider block">Recommended Actions</span>
+                
+                <div className="flex items-start gap-2.5 text-xs text-slate-500 dark:text-slate-400">
+                  <span className="w-1.5 h-1.5 rounded-full bg-brand-500 mt-1.5 shrink-0" />
+                  <p>
+                    {aiReport.trend === 'Upward' 
+                      ? 'Desi Ghee and Bengali sweets ingredients are predicted to sell at high velocity. We recommend expanding dairy inventories by 25%.' 
+                      : aiReport.trend === 'Downward'
+                      ? 'Sales levels are predicted to stabilize or cool down. Adjust shelf-life expiration safety buffers to prevent perishable milk waste.'
+                      : 'Ecosystem sales levels are stable. Maintain regular ingredient restock quotas.'
+                    }
+                  </p>
+                </div>
+
+                <div className="flex items-start gap-2.5 text-xs text-slate-500 dark:text-slate-400">
+                  <span className="w-1.5 h-1.5 rounded-full bg-pink-500 mt-1.5 shrink-0" />
+                  <p>
+                    Ensure your counter POS cashier terminal has offline sync initialized to capture peak busy-period invoices without latency.
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="p-4 rounded-xl bg-slate-50 dark:bg-slate-800/40 text-xs text-slate-400 text-center font-medium">
+              Linear regression models automatically trained on 30-day historical branch turnovers.
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Bottom Audit Logs / Live Updates Panel */}
       {user?.role === 'Super Admin' && (

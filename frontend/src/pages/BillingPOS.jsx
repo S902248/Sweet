@@ -7,7 +7,7 @@ import {
 import api from '../utils/api.js';
 
 const BillingPOS = ({ selectedBranch }) => {
-  const { user } = useSelector((state) => state.auth);
+  const { user, token } = useSelector((state) => state.auth);
 
   const [products, setProducts] = useState([]);
   const [categories, setCategories] = useState([]);
@@ -21,8 +21,42 @@ const BillingPOS = ({ selectedBranch }) => {
   const [customerName, setCustomerName] = useState('');
   const [customerPhone, setCustomerPhone] = useState('');
   
-  const [showQrModal, setShowQrModal] = useState(false);
-  const [qrValue, setQrValue] = useState('');
+  const [customerProfile, setCustomerProfile] = useState(null);
+  const [redeemPoints, setRedeemPoints] = useState(false);
+  const [searchingCustomer, setSearchingCustomer] = useState(false);
+  const [printInvoice, setPrintInvoice] = useState(false);
+  const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [lastGeneratedBill, setLastGeneratedBill] = useState(null);
+
+  useEffect(() => {
+    const fetchCustomerProfile = async () => {
+      if (customerPhone.trim().length !== 10) {
+        setCustomerProfile(null);
+        setRedeemPoints(false);
+        return;
+      }
+
+      try {
+        setSearchingCustomer(true);
+        const res = await api.get(`/customers/phone/${customerPhone}`);
+        if (res.data.success) {
+          setCustomerProfile(res.data.data);
+          if (!customerName) {
+            setCustomerName(res.data.data.name);
+          }
+        }
+        setSearchingCustomer(false);
+      } catch (err) {
+        setCustomerProfile(null);
+        setRedeemPoints(false);
+        setSearchingCustomer(false);
+      }
+    };
+
+    fetchCustomerProfile();
+  }, [customerPhone]);
+
+
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [offlineBills, setOfflineBills] = useState([]);
 
@@ -135,21 +169,39 @@ const BillingPOS = ({ selectedBranch }) => {
 
   // Calculations
   const subtotal = cart.reduce((sum, item) => sum + (item.price * item.quantity), 0);
-  const tax = parseFloat(((subtotal - discount) * 0.05).toFixed(2));
-  const total = parseFloat((subtotal - discount + tax).toFixed(2));
+  
+  const pointsRedeemedAmount = redeemPoints && customerProfile 
+    ? Math.min(customerProfile.loyaltyPoints, Math.floor(subtotal - discount)) 
+    : 0;
+
+  const totalDiscount = parseFloat((discount + pointsRedeemedAmount).toFixed(2));
+  const tax = parseFloat((Math.max(0, subtotal - totalDiscount) * 0.05).toFixed(2));
+  const total = parseFloat((Math.max(0, subtotal - totalDiscount) + tax).toFixed(2));
+
+  const handlePrint = (invoiceNum) => {
+    const iframe = document.getElementById('print-iframe');
+    if (iframe) {
+      iframe.src = 'about:blank';
+      setTimeout(() => {
+        iframe.src = `http://localhost:5000/api/billing/invoice/${invoiceNum}/pdf?token=${token}`;
+      }, 50);
+    }
+  };
 
   const handleCheckout = async () => {
     if (cart.length === 0) return;
 
     const billPayload = {
       branchId: selectedBranch || user?.branchId || 'mock_branch_1',
-      customerId: null,
+      customerId: customerProfile?._id || customerProfile?.id || null,
       customerPhone,
       customerName: customerName || 'Walk-in Customer',
       items: cart,
       discountAmount: Number(discount),
       paymentMethod,
-      type: 'Counter'
+      type: 'Counter',
+      redeemPoints: redeemPoints,
+      upiId: localStorage.getItem('upiId') || 'sweetflow@ybl'
     };
 
     // Offline billing sync logic!
@@ -168,25 +220,24 @@ const BillingPOS = ({ selectedBranch }) => {
     }
 
     try {
-      if (paymentMethod === 'UPI' && !showQrModal) {
-        // Trigger UPI payment QR code simulator
-        setQrValue(`upi://pay?pa=sweetflow@ybl&pn=SweetFlow%20ERP&am=${total}&tn=SweetFlowInvoice`);
-        setShowQrModal(true);
-        return;
-      }
-
       const res = await api.post('/billing/checkout', billPayload);
       if (res.data.success) {
-        setShowQrModal(false);
+        const invoiceNum = res.data.data.bill.invoiceNumber;
+        setLastGeneratedBill(res.data.data.bill);
+        setShowSuccessModal(true);
+
+        // Print receipt directly using the hidden iframe if enabled
+        if (printInvoice) {
+          handlePrint(invoiceNum);
+        }
+
         // Reset POS
         setCart([]);
         setCustomerName('');
         setCustomerPhone('');
         setDiscount(0);
-        
-        // Open PDF receipt in new window
-        const invoiceNum = res.data.data.bill.invoiceNumber;
-        window.open(`http://localhost:5000/api/billing/invoice/${invoiceNum}/pdf`, '_blank');
+        setCustomerProfile(null);
+        setRedeemPoints(false);
         
         // Refresh products list to reflect new stocks
         fetchProducts();
@@ -353,13 +404,56 @@ const BillingPOS = ({ selectedBranch }) => {
             onChange={(e) => setCustomerName(e.target.value)}
             className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl focus:outline-none focus:border-brand-500 text-xs"
           />
-          <input
-            type="text"
-            placeholder="Customer Phone (For Loyalty Points)"
-            value={customerPhone}
-            onChange={(e) => setCustomerPhone(e.target.value)}
-            className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl focus:outline-none focus:border-brand-500 text-xs"
-          />
+          <div className="relative">
+            <input
+              type="text"
+              placeholder="Customer Phone (10 digits)"
+              value={customerPhone}
+              onChange={(e) => setCustomerPhone(e.target.value.replace(/\D/g, '').slice(0, 10))}
+              className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl focus:outline-none focus:border-brand-500 text-xs"
+            />
+            {searchingCustomer && (
+              <span className="absolute right-3 top-2 text-[9px] font-bold text-slate-400 animate-pulse">Searching...</span>
+            )}
+          </div>
+
+          {/* Loyalty points card overlay */}
+          {customerProfile && (
+            <div className="p-3.5 rounded-2xl bg-gradient-to-r from-brand-500/10 via-indigo-500/5 to-transparent border border-brand-500/15 space-y-2.5 transition-all">
+              <div className="flex items-center justify-between">
+                <div>
+                  <span className={`px-2 py-0.5 rounded-full text-[9px] font-extrabold uppercase ${
+                    customerProfile.membershipType === 'Platinum'
+                      ? 'bg-indigo-600/10 text-indigo-600 border border-indigo-200/50'
+                      : customerProfile.membershipType === 'Gold'
+                      ? 'bg-amber-500/10 text-amber-500 border border-amber-200/50'
+                      : 'bg-slate-200 dark:bg-slate-800 text-slate-500'
+                  }`}>
+                    {customerProfile.membershipType} Member
+                  </span>
+                  <p className="text-[10px] font-bold text-slate-600 dark:text-slate-350 mt-1 truncate">
+                    Welcome back, {customerProfile.name}
+                  </p>
+                </div>
+                <div className="text-right">
+                  <p className="text-xs font-black text-brand-500">{customerProfile.loyaltyPoints} pts</p>
+                  <p className="text-[8px] text-slate-400">Balance</p>
+                </div>
+              </div>
+
+              {customerProfile.loyaltyPoints > 0 && (
+                <label className="flex items-center gap-2 text-xs font-semibold text-slate-500 cursor-pointer pt-1 border-t border-slate-100 dark:border-slate-800/45">
+                  <input
+                    type="checkbox"
+                    checked={redeemPoints}
+                    onChange={(e) => setRedeemPoints(e.target.checked)}
+                    className="w-4 h-4 rounded bg-white border-slate-200 text-brand-500 focus:ring-0 focus:ring-offset-0"
+                  />
+                  <span>Redeem points for Rs. {Math.min(customerProfile.loyaltyPoints, Math.floor(subtotal - discount))} discount</span>
+                </label>
+              )}
+            </div>
+          )}
         </div>
 
         {/* Cart Items List */}
@@ -414,7 +508,7 @@ const BillingPOS = ({ selectedBranch }) => {
             <input 
               type="number"
               value={discount}
-              onChange={(e) => setDiscount(Math.max(0, Number(e.target.value)))}
+              onChange={(e) => setDiscount(Math.min(subtotal, Math.max(0, Number(e.target.value))))}
               className="w-16 text-right px-2 py-0.5 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded focus:outline-none focus:border-brand-500 font-semibold"
             />
           </div>
@@ -457,59 +551,86 @@ const BillingPOS = ({ selectedBranch }) => {
             </div>
           </div>
 
+          {/* Print Bill Toggle */}
+          <div className="flex items-center justify-between p-3 rounded-xl bg-slate-50 dark:bg-slate-900 border border-slate-200/50 dark:border-slate-800/30">
+            <div className="flex items-center gap-2">
+              <FileText className="w-4 h-4 text-slate-400 dark:text-slate-500" />
+              <span className="text-xs font-bold text-slate-600 dark:text-slate-300">Auto-open Bill PDF</span>
+            </div>
+            <label className="relative inline-flex items-center cursor-pointer">
+              <input 
+                type="checkbox" 
+                checked={printInvoice} 
+                onChange={(e) => setPrintInvoice(e.target.checked)} 
+                className="sr-only peer"
+              />
+              <div className="w-9 h-5 bg-slate-200 dark:bg-slate-800 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-4 after:w-4 after:transition-all dark:border-slate-600 peer-checked:bg-brand-500 animate-transition"></div>
+            </label>
+          </div>
+
           <button
             onClick={handleCheckout}
             disabled={cart.length === 0}
             className="w-full py-3.5 bg-gradient-to-r from-brand-600 to-indigo-600 hover:from-brand-500 hover:to-indigo-500 text-white font-bold rounded-xl transition-all duration-300 shadow-lg shadow-brand-500/10 disabled:opacity-50 flex items-center justify-center gap-2"
           >
-            <FileText className="w-5 h-5" /> Generate Invoice
+            <FileText className="w-5 h-5" /> Generate Bill
           </button>
         </div>
       </div>
 
-      {/* UPI QR Payment Modal */}
-      {showQrModal && (
-        <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="glass-card glass-modal p-6 max-w-sm w-full text-center space-y-6">
-            <div>
-              <h3 className="font-extrabold text-lg text-slate-800 dark:text-white">Scan & Pay</h3>
-              <p className="text-xs text-slate-400 mt-1">UPI Merchant Code Invoice Gateway</p>
-            </div>
-
-            {/* Custom Styled QR simulator */}
-            <div className="flex flex-col items-center justify-center p-4 bg-white rounded-2xl border border-slate-100 max-w-[200px] mx-auto shadow-sm">
-              <div className="w-40 h-40 bg-slate-800 flex items-center justify-center text-white relative">
-                {/* Simulated QR boxes */}
-                <div className="absolute top-2 left-2 w-10 h-10 border-4 border-white" />
-                <div className="absolute top-2 right-2 w-10 h-10 border-4 border-white" />
-                <div className="absolute bottom-2 left-2 w-10 h-10 border-4 border-white" />
-                <Sparkles className="w-10 h-10 text-brand-500 animate-spin" />
+      {/* Success Modal */}
+      {showSuccessModal && lastGeneratedBill && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-fade-in">
+          <div className="bg-white dark:bg-slate-950 rounded-3xl border border-slate-100 dark:border-slate-800 max-w-md w-full p-6 shadow-2xl space-y-6 transform scale-100 transition-all duration-300">
+            
+            {/* Header / Success Indicator */}
+            <div className="flex flex-col items-center text-center space-y-3">
+              <div className="w-16 h-16 bg-emerald-500/10 dark:bg-emerald-500/20 text-emerald-500 rounded-full flex items-center justify-center animate-bounce">
+                <Sparkles className="w-8 h-8" />
               </div>
-              <p className="text-[10px] text-slate-500 font-bold mt-2 font-mono">MERCHANT: SWEETFLOW@YBL</p>
+              <h3 className="text-xl font-extrabold text-slate-800 dark:text-white">Bill Generated Successfully!</h3>
+              <p className="text-xs text-slate-400 dark:text-slate-500">Transaction completed and inventory updated.</p>
             </div>
 
-            <div className="space-y-1">
-              <p className="text-xs text-slate-400">Total Amount Due</p>
-              <h4 className="text-2xl font-black text-brand-500">Rs. {total}</h4>
+            {/* Receipt Preview */}
+            <div className="border border-slate-200 dark:border-slate-800/80 rounded-2xl overflow-hidden bg-slate-50 dark:bg-slate-900 p-2 shadow-inner">
+              <iframe
+                src={`http://localhost:5000/api/billing/invoice/${lastGeneratedBill.invoiceNumber}/pdf?token=${token}&noprint=true`}
+                title="Invoice Receipt"
+                className="w-full h-[380px] rounded-xl bg-white border-0 shadow-sm"
+              />
             </div>
 
-            <div className="flex gap-3">
-              <button 
-                onClick={() => setShowQrModal(false)}
-                className="w-1/2 py-2.5 border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/40 text-slate-500 rounded-xl text-xs font-semibold"
+            {/* Action Buttons */}
+            <div className="flex flex-col sm:flex-row gap-3">
+              <button
+                type="button"
+                onClick={() => handlePrint(lastGeneratedBill.invoiceNumber)}
+                className="flex-1 py-3 bg-gradient-to-r from-brand-600 to-indigo-600 hover:from-brand-500 hover:to-indigo-500 text-white font-bold rounded-xl transition-all duration-300 shadow-md shadow-brand-500/10 flex items-center justify-center gap-2 text-xs"
               >
-                Cancel
+                <FileText className="w-4 h-4" /> Print Receipt
               </button>
-              <button 
-                onClick={handleCheckout}
-                className="w-1/2 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-white rounded-xl text-xs font-bold"
+              <button
+                type="button"
+                onClick={() => {
+                  setShowSuccessModal(false);
+                  setLastGeneratedBill(null);
+                }}
+                className="flex-1 py-3 border border-slate-200 dark:border-slate-800 hover:bg-slate-50 dark:hover:bg-slate-800/40 text-slate-600 dark:text-slate-350 font-bold rounded-xl transition-all duration-300 flex items-center justify-center text-xs"
               >
-                Simulate Payment Success
+                New Transaction
               </button>
             </div>
           </div>
         </div>
       )}
+
+      {/* Hidden iframe for direct printing */}
+      <iframe 
+        id="print-iframe" 
+        title="Print Invoice"
+        style={{ display: 'none' }}
+      />
     </div>
   );
 };

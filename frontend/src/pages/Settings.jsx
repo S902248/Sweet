@@ -5,14 +5,20 @@ import { Settings, Shield, Store, CreditCard, Save } from 'lucide-react';
 const SettingsPage = () => {
   const { user } = useSelector((state) => state.auth);
 
-  // Business profile states
-  const [shopName, setShopName] = useState('SweetFlow ERP');
-  const [currency, setCurrency] = useState('INR (Rs.)');
-  const [taxRate, setTaxRate] = useState('5');
-  const [enableLoyalty, setEnableLoyalty] = useState(true);
+  // Business profile states loaded dynamically from localStorage or defaults
+  const [shopName, setShopName] = useState(localStorage.getItem('shopName') || 'SweetFlow ERP');
+  const [currency, setCurrency] = useState(localStorage.getItem('currency') || 'INR (Rs.)');
+  const [taxRate, setTaxRate] = useState(localStorage.getItem('taxRate') || '5');
+  const [enableLoyalty, setEnableLoyalty] = useState(localStorage.getItem('enableLoyalty') !== 'false');
+  const [upiId, setUpiId] = useState(localStorage.getItem('upiId') || 'sweetflow@ybl');
 
   const handleSave = (e) => {
     e.preventDefault();
+    localStorage.setItem('shopName', shopName);
+    localStorage.setItem('currency', currency);
+    localStorage.setItem('taxRate', taxRate);
+    localStorage.setItem('enableLoyalty', enableLoyalty);
+    localStorage.setItem('upiId', upiId);
     alert('System settings updated successfully!');
   };
 
@@ -81,6 +87,19 @@ const SettingsPage = () => {
                 />
               </div>
 
+              <div>
+                <label className="block text-[10px] font-bold text-slate-400 mb-1.5 uppercase tracking-wide">UPI ID for Scanner (Payments)</label>
+                <input
+                  type="text"
+                  value={upiId}
+                  onChange={(e) => setUpiId(e.target.value)}
+                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl focus:outline-none focus:border-brand-500 text-xs text-slate-700 dark:text-slate-200 font-semibold"
+                  placeholder="merchant@ybl"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               <div className="flex items-center gap-2.5 pt-4">
                 <input
                   type="checkbox"
@@ -89,7 +108,7 @@ const SettingsPage = () => {
                   onChange={(e) => setEnableLoyalty(e.target.checked)}
                   className="w-4.5 h-4.5 accent-brand-500 rounded border-slate-200 dark:border-slate-800 focus:ring-brand-500/20 cursor-pointer"
                 />
-                <label htmlFor="loyalty" className="text-xs font-bold text-slate-600 dark:text-slate-300 cursor-pointer">
+                <label htmlFor="loyalty" className="text-xs font-bold text-slate-600 dark:text-slate-350 cursor-pointer">
                   Activate Loyalty point modules
                 </label>
               </div>
