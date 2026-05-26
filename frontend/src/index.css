@@ -153,4 +153,13 @@ body.dark {
     linear-gradient(to bottom, rgba(0, 0, 0, 0.015) 1px, transparent 1px);
 }
 
+/* Navbar Dropdown Hover Styles */
+.nav-dropdown-group:hover .nav-dropdown-menu {
+  opacity: 1;
+  visibility: visible;
+  transform: translateY(0);
+}
 
+.nav-dropdown-group:hover .dropdown-chevron {
+  transform: rotate(180deg);
+}
