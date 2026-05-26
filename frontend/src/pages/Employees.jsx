@@ -1,6 +1,21 @@
 import React, { useEffect, useState } from 'react';
-import { Users, ClipboardCheck, DollarSign, Star, Plus, Check } from 'lucide-react';
+import { Users, ClipboardCheck, DollarSign, Star, Plus, Check, AlertCircle } from 'lucide-react';
 import api from '../utils/api.js';
+import { validateName, validatePhone, validateSalary } from '../utils/validators.js';
+
+const FieldError = ({ msg }) =>
+  msg ? (
+    <p className="flex items-center gap-1 mt-1 text-[10px] font-semibold text-rose-500">
+      <AlertCircle className="w-3 h-3 shrink-0" /> {msg}
+    </p>
+  ) : null;
+
+const inputClass = (err) =>
+  `w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border ${
+    err
+      ? 'border-rose-400 focus:border-rose-500 focus:ring-2 focus:ring-rose-500/20'
+      : 'border-slate-200 dark:border-slate-800 focus:border-brand-500'
+  } rounded-xl focus:outline-none text-xs text-slate-700 dark:text-slate-200`;
 
 const Employees = ({ selectedBranch }) => {
   const [employees, setEmployees] = useState([]);
@@ -12,6 +27,10 @@ const Employees = ({ selectedBranch }) => {
   const [phone, setPhone] = useState('');
   const [role, setRole] = useState('Cashier');
   const [salary, setSalary] = useState('');
+
+  // Validation errors
+  const [errors, setErrors] = useState({});
+  const [touched, setTouched] = useState({});
 
   // Daily attendance state
   const [attendanceDate, setAttendanceDate] = useState(new Date().toISOString().split('T')[0]);
@@ -35,9 +54,26 @@ const Employees = ({ selectedBranch }) => {
     }
   };
 
+  const validate = (fields = { name, phone, salary }) => {
+    return {
+      name: validateName(fields.name, 'Full Name'),
+      phone: validatePhone(fields.phone),
+      salary: validateSalary(fields.salary),
+    };
+  };
+
+  const handleBlur = (field) => {
+    setTouched((prev) => ({ ...prev, [field]: true }));
+    setErrors(validate());
+  };
+
   const handleCreateEmployee = async (e) => {
     e.preventDefault();
-    if (!name || !phone || !salary) return;
+    // Touch all fields
+    setTouched({ name: true, phone: true, salary: true });
+    const errs = validate();
+    setErrors(errs);
+    if (Object.values(errs).some(Boolean)) return;
 
     try {
       const res = await api.post('/employees', {
@@ -55,6 +91,8 @@ const Employees = ({ selectedBranch }) => {
         setPhone('');
         setRole('Cashier');
         setSalary('');
+        setErrors({});
+        setTouched({});
       }
     } catch (err) {
       alert(err.response?.data?.message || 'Error adding employee');
@@ -187,44 +225,54 @@ const Employees = ({ selectedBranch }) => {
               <p className="text-xs text-slate-400 mt-1">Configure employee profile, role, and salary parameters</p>
             </div>
 
-            <form onSubmit={handleCreateEmployee} className="space-y-4">
+            <form onSubmit={handleCreateEmployee} className="space-y-4" noValidate>
+              {/* Full Name */}
               <div>
                 <label className="block text-[10px] font-bold text-slate-400 mb-1 uppercase tracking-wide">Full Name</label>
                 <input
                   type="text"
                   value={name}
-                  onChange={(e) => setName(e.target.value)}
+                  onChange={(e) => { setName(e.target.value); if (touched.name) setErrors(v => ({ ...v, name: validateName(e.target.value, 'Full Name') })); }}
+                  onBlur={() => handleBlur('name')}
                   placeholder="e.g. Ramesh Sen"
-                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl focus:outline-none focus:border-brand-500 text-xs text-slate-700 dark:text-slate-200"
-                  required
+                  className={inputClass(touched.name && errors.name)}
                 />
+                <FieldError msg={touched.name && errors.name} />
               </div>
 
               <div className="grid grid-cols-2 gap-4">
+                {/* Phone */}
                 <div>
                   <label className="block text-[10px] font-bold text-slate-400 mb-1 uppercase tracking-wide">Phone Number</label>
                   <input
-                    type="text"
+                    type="tel"
                     value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
+                    onChange={(e) => { setPhone(e.target.value); if (touched.phone) setErrors(v => ({ ...v, phone: validatePhone(e.target.value) })); }}
+                    onBlur={() => handleBlur('phone')}
                     placeholder="e.g. 9830098300"
-                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl focus:outline-none focus:border-brand-500 text-xs text-slate-700 dark:text-slate-200"
-                    required
+                    maxLength={13}
+                    className={inputClass(touched.phone && errors.phone)}
                   />
+                  <FieldError msg={touched.phone && errors.phone} />
                 </div>
+
+                {/* Salary */}
                 <div>
                   <label className="block text-[10px] font-bold text-slate-400 mb-1 uppercase tracking-wide">Monthly Salary (Rs.)</label>
                   <input
                     type="number"
                     value={salary}
-                    onChange={(e) => setSalary(e.target.value)}
+                    onChange={(e) => { setSalary(e.target.value); if (touched.salary) setErrors(v => ({ ...v, salary: validateSalary(e.target.value) })); }}
+                    onBlur={() => handleBlur('salary')}
                     placeholder="e.g. 25000"
-                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl focus:outline-none focus:border-brand-500 text-xs text-slate-700 dark:text-slate-200"
-                    required
+                    min="1"
+                    className={inputClass(touched.salary && errors.salary)}
                   />
+                  <FieldError msg={touched.salary && errors.salary} />
                 </div>
               </div>
 
+              {/* Role */}
               <div>
                 <label className="block text-[10px] font-bold text-slate-400 mb-1 uppercase tracking-wide">Assigned Role</label>
                 <select
@@ -242,7 +290,7 @@ const Employees = ({ selectedBranch }) => {
               <div className="flex gap-3 pt-2">
                 <button
                   type="button"
-                  onClick={() => setShowModal(false)}
+                  onClick={() => { setShowModal(false); setErrors({}); setTouched({}); }}
                   className="w-1/2 py-2.5 border border-slate-200 dark:border-slate-800 text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800/40 rounded-xl text-xs font-semibold"
                 >
                   Cancel

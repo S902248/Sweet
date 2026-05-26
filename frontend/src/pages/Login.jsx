@@ -20,12 +20,22 @@ import {
   CheckCircle2
 } from 'lucide-react';
 import api from '../utils/api.js';
+import { validateEmail, validatePassword } from '../utils/validators.js';
+
+const FieldError = ({ msg }) =>
+  msg ? (
+    <p className="flex items-center gap-1 mt-1.5 text-[10px] font-semibold text-rose-500">
+      <AlertCircle className="w-3 h-3 shrink-0" /> {msg}
+    </p>
+  ) : null;
 
 const Login = () => {
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [currentSlide, setCurrentSlide] = useState(0);
+  const [formErrors, setFormErrors] = useState({});
+  const [formTouched, setFormTouched] = useState({});
 
   const dispatch = useDispatch();
   const navigate = useNavigate();
@@ -38,9 +48,22 @@ const Login = () => {
     }
   }, [isAuthenticated, navigate, dispatch]);
 
+  const validateForm = (fields = { email, password }) => ({
+    email: validateEmail(fields.email),
+    password: validatePassword(fields.password),
+  });
+
+  const handleFormBlur = (field) => {
+    setFormTouched((prev) => ({ ...prev, [field]: true }));
+    setFormErrors(validateForm());
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!email || !password) return;
+    setFormTouched({ email: true, password: true });
+    const errs = validateForm();
+    setFormErrors(errs);
+    if (Object.values(errs).some(Boolean)) return;
 
     dispatch(loginStart());
     try {
@@ -197,7 +220,7 @@ const Login = () => {
               </div>
             )}
 
-            <form onSubmit={handleSubmit} className="space-y-6">
+            <form onSubmit={handleSubmit} className="space-y-6" noValidate>
 
               {/* Email Address with Floating Label */}
               <div>
@@ -206,10 +229,14 @@ const Login = () => {
                     id="email"
                     type="email"
                     value={email}
-                    onChange={(e) => setEmail(e.target.value)}
+                    onChange={(e) => { setEmail(e.target.value); if (formTouched.email) setFormErrors(v => ({ ...v, email: validateEmail(e.target.value) })); }}
+                    onBlur={() => handleFormBlur('email')}
                     placeholder=" "
-                    className="peer w-full pl-11 pr-4 pt-6 pb-2 bg-white border border-slate-200/80 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 rounded-xl outline-none text-slate-800 text-sm transition-all duration-200"
-                    required
+                    className={`peer w-full pl-11 pr-4 pt-6 pb-2 bg-white border ${
+                      formTouched.email && formErrors.email
+                        ? 'border-rose-400 focus:border-rose-500 focus:ring-4 focus:ring-rose-500/10'
+                        : 'border-slate-200/80 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10'
+                    } rounded-xl outline-none text-slate-800 text-sm transition-all duration-200`}
                   />
                   <label
                     htmlFor="email"
@@ -221,6 +248,7 @@ const Login = () => {
                     <Mail className="w-4.5 h-4.5" />
                   </span>
                 </div>
+                <FieldError msg={formTouched.email && formErrors.email} />
               </div>
 
               {/* Password with Floating Label + Toggle */}
@@ -230,10 +258,14 @@ const Login = () => {
                     id="password"
                     type={showPassword ? "text" : "password"}
                     value={password}
-                    onChange={(e) => setPassword(e.target.value)}
+                    onChange={(e) => { setPassword(e.target.value); if (formTouched.password) setFormErrors(v => ({ ...v, password: validatePassword(e.target.value) })); }}
+                    onBlur={() => handleFormBlur('password')}
                     placeholder=" "
-                    className="peer w-full pl-11 pr-11 pt-6 pb-2 bg-white border border-slate-200/80 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10 rounded-xl outline-none text-slate-800 text-sm transition-all duration-200"
-                    required
+                    className={`peer w-full pl-11 pr-11 pt-6 pb-2 bg-white border ${
+                      formTouched.password && formErrors.password
+                        ? 'border-rose-400 focus:border-rose-500 focus:ring-4 focus:ring-rose-500/10'
+                        : 'border-slate-200/80 focus:border-indigo-500 focus:ring-4 focus:ring-indigo-500/10'
+                    } rounded-xl outline-none text-slate-800 text-sm transition-all duration-200`}
                   />
                   <label
                     htmlFor="password"
@@ -253,6 +285,7 @@ const Login = () => {
                     {showPassword ? <EyeOff className="w-4.5 h-4.5" /> : <Eye className="w-4.5 h-4.5" />}
                   </button>
                 </div>
+                <FieldError msg={formTouched.password && formErrors.password} />
               </div>
 
               {/* Remember & Forgot Row */}

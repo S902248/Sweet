@@ -200,6 +200,16 @@
       "action": "Seed Database",
       "details": "Initialized database with clean production starter master data.",
       "ipAddress": "127.0.0.1"
+    },
+    {
+      "_id": "mock_ujvwgkb4w",
+      "createdAt": "2026-05-25T05:08:46.646Z",
+      "updatedAt": "2026-05-25T05:08:46.646Z",
+      "userId": "mock_skiaexa9f",
+      "userName": "Super Admin",
+      "action": "Login",
+      "details": "Logged in successfully",
+      "ipAddress": "::1"
     }
   ]
 }

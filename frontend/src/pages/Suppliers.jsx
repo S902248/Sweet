@@ -1,6 +1,25 @@
 import React, { useEffect, useState } from 'react';
-import { Plus, Trash2, Edit, Search, User, Phone, Mail, MapPin, Tag } from 'lucide-react';
+import { Plus, Trash2, Edit, Search, User, Phone, Mail, MapPin, Tag, AlertCircle } from 'lucide-react';
 import api from '../utils/api.js';
+import {
+  validateName,
+  validatePhoneOptional,
+  validateEmailOptional,
+} from '../utils/validators.js';
+
+const FieldError = ({ msg }) =>
+  msg ? (
+    <p className="flex items-center gap-1 mt-1 text-[10px] font-semibold text-rose-500">
+      <AlertCircle className="w-3 h-3 shrink-0" /> {msg}
+    </p>
+  ) : null;
+
+const inputClass = (err) =>
+  `w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border ${
+    err
+      ? 'border-rose-400 focus:border-rose-500 focus:ring-2 focus:ring-rose-500/20'
+      : 'border-slate-200 dark:border-slate-800 focus:border-brand-500'
+  } rounded-xl focus:outline-none text-xs text-slate-700 dark:text-slate-200`;
 
 const Suppliers = () => {
   const [suppliers, setSuppliers] = useState([]);
@@ -19,6 +38,10 @@ const Suppliers = () => {
   const [address, setAddress] = useState('');
   const [categoriesText, setCategoriesText] = useState('');
 
+  // Validation
+  const [errors, setErrors] = useState({});
+  const [touched, setTouched] = useState({});
+
   useEffect(() => {
     fetchSuppliers();
   }, []);
@@ -36,14 +59,20 @@ const Suppliers = () => {
     }
   };
 
-  const handleOpenCreateModal = () => {
-    setEditingSupplier(null);
+  const resetForm = () => {
     setName('');
     setContactName('');
     setPhone('');
     setEmail('');
     setAddress('');
     setCategoriesText('');
+    setErrors({});
+    setTouched({});
+  };
+
+  const handleOpenCreateModal = () => {
+    setEditingSupplier(null);
+    resetForm();
     setShowSupplierModal(true);
   };
 
@@ -55,12 +84,28 @@ const Suppliers = () => {
     setEmail(s.email || '');
     setAddress(s.address || '');
     setCategoriesText(s.categoriesSupplied ? s.categoriesSupplied.join(', ') : '');
+    setErrors({});
+    setTouched({});
     setShowSupplierModal(true);
+  };
+
+  const validate = (fields = { name, phone, email }) => ({
+    name: validateName(fields.name, 'Company Name'),
+    phone: validatePhoneOptional(fields.phone),
+    email: validateEmailOptional(fields.email),
+  });
+
+  const handleBlur = (field) => {
+    setTouched((prev) => ({ ...prev, [field]: true }));
+    setErrors(validate());
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    if (!name) return;
+    setTouched({ name: true, phone: true, email: true });
+    const errs = validate();
+    setErrors(errs);
+    if (Object.values(errs).some(Boolean)) return;
 
     const categories = categoriesText
       ? categoriesText.split(',').map(s => s.trim()).filter(Boolean)
@@ -211,7 +256,7 @@ const Suppliers = () => {
       {/* Supplier Modal */}
       {showSupplierModal && (
         <div className="fixed inset-0 bg-slate-950/80 backdrop-blur-sm flex items-center justify-center z-50 p-4">
-          <div className="glass-card glass-modal p-6 max-w-md w-full space-y-6">
+          <div className="glass-card glass-modal p-6 max-w-md w-full space-y-6 max-h-[90vh] overflow-y-auto">
             <div>
               <h3 className="font-extrabold text-lg text-slate-800 dark:text-white">
                 {editingSupplier ? 'Edit Supplier Details' : 'Add New Supplier'}
@@ -219,20 +264,23 @@ const Suppliers = () => {
               <p className="text-xs text-slate-400 mt-1">Configure company name, contact info, and categories</p>
             </div>
 
-            <form onSubmit={handleSubmit} className="space-y-4">
+            <form onSubmit={handleSubmit} className="space-y-4" noValidate>
+              {/* Company Name */}
               <div>
-                <label className="block text-[10px] font-bold text-slate-400 mb-1 uppercase tracking-wide">Company Name</label>
+                <label className="block text-[10px] font-bold text-slate-400 mb-1 uppercase tracking-wide">Company Name <span className="text-rose-400">*</span></label>
                 <input
                   type="text"
                   value={name}
-                  onChange={(e) => setName(e.target.value)}
+                  onChange={(e) => { setName(e.target.value); if (touched.name) setErrors(v => ({ ...v, name: validateName(e.target.value, 'Company Name') })); }}
+                  onBlur={() => handleBlur('name')}
                   placeholder="e.g. Anandam Sweets Wholesale"
-                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl focus:outline-none focus:border-brand-500 text-xs text-slate-700 dark:text-slate-200"
-                  required
+                  className={inputClass(touched.name && errors.name)}
                 />
+                <FieldError msg={touched.name && errors.name} />
               </div>
 
               <div className="grid grid-cols-2 gap-4">
+                {/* Contact Person */}
                 <div>
                   <label className="block text-[10px] font-bold text-slate-400 mb-1 uppercase tracking-wide">Contact Person</label>
                   <input
@@ -240,32 +288,41 @@ const Suppliers = () => {
                     value={contactName}
                     onChange={(e) => setContactName(e.target.value)}
                     placeholder="e.g. Hari Lal"
-                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl focus:outline-none focus:border-brand-500 text-xs text-slate-700 dark:text-slate-200"
+                    className={inputClass(false)}
                   />
                 </div>
+
+                {/* Phone */}
                 <div>
                   <label className="block text-[10px] font-bold text-slate-400 mb-1 uppercase tracking-wide">Phone Number</label>
                   <input
-                    type="text"
+                    type="tel"
                     value={phone}
-                    onChange={(e) => setPhone(e.target.value)}
+                    onChange={(e) => { setPhone(e.target.value); if (touched.phone) setErrors(v => ({ ...v, phone: validatePhoneOptional(e.target.value) })); }}
+                    onBlur={() => handleBlur('phone')}
                     placeholder="e.g. 9830098300"
-                    className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl focus:outline-none focus:border-brand-500 text-xs text-slate-700 dark:text-slate-200"
+                    maxLength={13}
+                    className={inputClass(touched.phone && errors.phone)}
                   />
+                  <FieldError msg={touched.phone && errors.phone} />
                 </div>
               </div>
 
+              {/* Email */}
               <div>
                 <label className="block text-[10px] font-bold text-slate-400 mb-1 uppercase tracking-wide">Email Address</label>
                 <input
                   type="email"
                   value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  onChange={(e) => { setEmail(e.target.value); if (touched.email) setErrors(v => ({ ...v, email: validateEmailOptional(e.target.value) })); }}
+                  onBlur={() => handleBlur('email')}
                   placeholder="e.g. supplier@domain.com"
-                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl focus:outline-none focus:border-brand-500 text-xs text-slate-700 dark:text-slate-200"
+                  className={inputClass(touched.email && errors.email)}
                 />
+                <FieldError msg={touched.email && errors.email} />
               </div>
 
+              {/* Address */}
               <div>
                 <label className="block text-[10px] font-bold text-slate-400 mb-1 uppercase tracking-wide">Physical Address</label>
                 <input
@@ -273,10 +330,11 @@ const Suppliers = () => {
                   value={address}
                   onChange={(e) => setAddress(e.target.value)}
                   placeholder="e.g. Sector V, Salt Lake, Kolkata"
-                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl focus:outline-none focus:border-brand-500 text-xs text-slate-700 dark:text-slate-200"
+                  className={inputClass(false)}
                 />
               </div>
 
+              {/* Categories */}
               <div>
                 <label className="block text-[10px] font-bold text-slate-400 mb-1 uppercase tracking-wide">Supplies Categories (Comma-separated)</label>
                 <input
@@ -284,14 +342,14 @@ const Suppliers = () => {
                   value={categoriesText}
                   onChange={(e) => setCategoriesText(e.target.value)}
                   placeholder="e.g. Bengali sweets, Dry sweets, Namkeen"
-                  className="w-full px-3 py-2 bg-slate-50 dark:bg-slate-900 border border-slate-200 dark:border-slate-800 rounded-xl focus:outline-none focus:border-brand-500 text-xs text-slate-700 dark:text-slate-200"
+                  className={inputClass(false)}
                 />
               </div>
 
               <div className="flex gap-3 pt-2">
                 <button
                   type="button"
-                  onClick={() => setShowSupplierModal(false)}
+                  onClick={() => { setShowSupplierModal(false); resetForm(); }}
                   className="w-1/2 py-2.5 border border-slate-200 dark:border-slate-800 text-slate-500 hover:bg-slate-50 dark:hover:bg-slate-800/40 rounded-xl text-xs font-semibold"
                 >
                   Cancel

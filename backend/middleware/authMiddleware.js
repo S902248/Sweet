@@ -1,4 +1,5 @@
 import jwt from 'jsonwebtoken';
+import mongoose from 'mongoose';
 import User from '../models/User.js';
 
 export const protect = async (req, res, next) => {
@@ -14,7 +15,12 @@ export const protect = async (req, res, next) => {
     try {
       const decoded = jwt.verify(token, process.env.JWT_SECRET || 'sweetflow_secret_key_2026_jwt');
 
-      // Fetch user from DB/Mock DB
+      // Reject mock/invalid ObjectIds (e.g. leftover mock DB sessions like "mock_skiaexa9f")
+      if (!mongoose.Types.ObjectId.isValid(decoded.id)) {
+        return res.status(401).json({ success: false, message: 'Not authorized, session expired. Please log in again.' });
+      }
+
+      // Fetch user from DB
       const user = await User.findById(decoded.id);
       if (!user) {
         return res.status(401).json({ success: false, message: 'Not authorized, user not found' });
