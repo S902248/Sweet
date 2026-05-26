@@ -581,23 +581,21 @@ const BillingPOS = ({ selectedBranch }) => {
       {/* Success Modal */}
       {showSuccessModal && lastGeneratedBill && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/60 backdrop-blur-sm p-4 animate-fade-in">
-          <div className="bg-white dark:bg-slate-950 rounded-3xl border border-slate-100 dark:border-slate-800 max-w-md w-full p-6 shadow-2xl space-y-6 transform scale-100 transition-all duration-300">
+          <div className="bg-white dark:bg-slate-950 rounded-3xl border border-slate-100 dark:border-slate-800 max-w-lg w-full p-6 shadow-2xl space-y-6 transform scale-100 transition-all duration-300">
             
-            {/* Header / Success Indicator */}
-            <div className="flex flex-col items-center text-center space-y-3">
-              <div className="w-16 h-16 bg-emerald-500/10 dark:bg-emerald-500/20 text-emerald-500 rounded-full flex items-center justify-center animate-bounce">
-                <Sparkles className="w-8 h-8" />
-              </div>
-              <h3 className="text-xl font-extrabold text-slate-800 dark:text-white">Bill Generated Successfully!</h3>
-              <p className="text-xs text-slate-400 dark:text-slate-500">Transaction completed and inventory updated.</p>
-            </div>
-
             {/* Receipt Preview */}
-            <div className="border border-slate-200 dark:border-slate-800/80 rounded-2xl overflow-hidden bg-slate-50 dark:bg-slate-900 p-2 shadow-inner">
+            <div className="overflow-hidden rounded-xl">
               <iframe
                 src={`http://localhost:5000/api/billing/invoice/${lastGeneratedBill.invoiceNumber}/pdf?token=${token}&noprint=true`}
                 title="Invoice Receipt"
-                className="w-full h-[380px] rounded-xl bg-white border-0 shadow-sm"
+                className="w-full h-[500px] bg-white border-0"
+                onLoad={(e) => {
+                  const logo = localStorage.getItem('shopLogo');
+                  const shopName = localStorage.getItem('shopName');
+                  if (logo || shopName) {
+                    e.target.contentWindow.postMessage({ type: 'SET_LOGO', logo, shopName }, '*');
+                  }
+                }}
               />
             </div>
 
@@ -630,6 +628,13 @@ const BillingPOS = ({ selectedBranch }) => {
         id="print-iframe" 
         title="Print Invoice"
         style={{ display: 'none' }}
+        onLoad={(e) => {
+          const logo = localStorage.getItem('shopLogo');
+          const shopName = localStorage.getItem('shopName');
+          if ((logo || shopName) && e.target.src !== 'about:blank' && e.target.src) {
+             e.target.contentWindow.postMessage({ type: 'SET_LOGO', logo, shopName }, '*');
+          }
+        }}
       />
     </div>
   );

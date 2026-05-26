@@ -13,6 +13,7 @@ import Dashboard from './pages/Dashboard.jsx';
 import BillingPOS from './pages/BillingPOS.jsx';
 import Inventory from './pages/Inventory.jsx';
 import Products from './pages/Products.jsx';
+import Categories from './pages/Categories.jsx';
 import Branches from './pages/Branches.jsx';
 import Orders from './pages/Orders.jsx';
 import Customers from './pages/Customers.jsx';
@@ -82,6 +83,7 @@ function App() {
                   <Route path="/pos" element={<BillingPOS selectedBranch={selectedBranch} />} />
                   <Route path="/inventory" element={<Inventory selectedBranch={selectedBranch} />} />
                   <Route path="/products" element={<Products selectedBranch={selectedBranch} />} />
+                  <Route path="/categories" element={<Categories />} />
                   <Route path="/branches" element={<Branches />} />
                   <Route path="/suppliers" element={<Suppliers />} />
                   <Route path="/orders" element={<Orders selectedBranch={selectedBranch} />} />

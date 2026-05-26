@@ -275,10 +275,37 @@ router.get('/invoice/:invoiceNumber/pdf', protect, enforceBranchScope, async (re
         ${req.query.noprint === 'true' ? '' : `
         <script>
           window.onload = function() {
-            window.print();
+            setTimeout(function() { window.print(); }, 500);
           }
         </script>
         `}
+        <script>
+          window.addEventListener('message', function(event) {
+            if (event.data && event.data.type === 'SET_LOGO') {
+              const header = document.querySelector('.header');
+              if (header && event.data.logo) {
+                const svg = header.querySelector('svg');
+                if (svg) svg.remove();
+                
+                const existingImg = header.querySelector('.logo-img');
+                if (!existingImg) {
+                  const img = document.createElement('img');
+                  img.src = event.data.logo;
+                  img.className = 'logo-img';
+                  img.style.maxWidth = '60px';
+                  img.style.maxHeight = '60px';
+                  img.style.margin = '0 auto 4px auto';
+                  img.style.display = 'block';
+                  header.insertBefore(img, header.firstChild);
+                }
+              }
+              if (event.data.shopName) {
+                const h2 = document.querySelector('.header h2');
+                if (h2) h2.textContent = event.data.shopName;
+              }
+            }
+          });
+        </script>
       </body>
       </html>
     `;
